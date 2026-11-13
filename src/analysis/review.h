@@ -39,7 +39,7 @@ Eval terminalEval(chess::Position& pos);
 
 std::vector<MoveReview> reviewMoves(const std::vector<Eval>& evals, const std::vector<chess::Move>& moves,
                                     const std::string& startFen = {});
-bool isSacrifice(chess::Position& after, chess::Move m, chess::Piece captured);
+bool isSacrifice(const chess::Position& before, chess::Position& after, chess::Move m, chess::Piece captured);
 Summary summarize(const std::vector<MoveReview>& reviews, chess::Color firstMover);
 
 const char* gradeName(Grade g);

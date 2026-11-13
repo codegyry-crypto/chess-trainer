@@ -125,16 +125,25 @@ static void testReview() {
         p.setFEN("4k3/6p1/5n2/8/8/8/1B6/4K3 w - - 0 1");
         const Move m = parseSAN(p, "Bxf6");
         const Piece cap = p.at(m.to);
+        Position before = p;
         p.makeMove(m);
-        CHECK(!isSacrifice(p, m, cap));
+        CHECK(!isSacrifice(before, p, m, cap));
         p.setFEN("4k3/8/8/8/7n/8/6P1/4K1N1 w - - 0 1");
         const Move n = parseSAN(p, "Nf3");
+        before = p;
         p.makeMove(n);
-        CHECK(!isSacrifice(p, n, NoPiece));
+        CHECK(!isSacrifice(before, p, n, NoPiece));
         p.setFEN("4k3/8/2p5/8/8/8/8/3RK3 w - - 0 1");
         const Move q = parseSAN(p, "Rd5");
+        before = p;
         p.makeMove(q);
-        CHECK(isSacrifice(p, q, NoPiece));
+        CHECK(isSacrifice(before, p, q, NoPiece));
+        p.setFEN("4k3/7r/8/8/8/7N/8/4K3 w - - 0 1");
+        const Move k = parseSAN(p, "Kd2");
+        before = p;
+        p.makeMove(k);
+        CHECK(!isSacrifice(before, p, k, NoPiece));
+        CHECK(toSquares(parseSAN(p, "Rxh3")) == "h7xh3");
     }
 
     r = reviewMoves({ev2(300, "d1d3", -200), ev(300, "x")}, line(sacFen, {"Qd3"}), sacFen);

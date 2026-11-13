@@ -11,6 +11,7 @@ extern const PieceLetters EnglishLetters;
 extern const PieceLetters RussianLetters;
 
 std::string toUCI(Move m);
+std::string toSquares(Move m);
 Move parseUCI(Position& pos, std::string_view text);
 
 std::string toSAN(Position& pos, Move m, const PieceLetters& letters = EnglishLetters);

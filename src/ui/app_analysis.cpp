@@ -38,8 +38,21 @@ std::string App::reviewMoveLabel(int i) const {
     const int plyFromStart = i + (review_.firstMover == chess::Black ? 1 : 0);
     const int number = review_.firstMoveNumber + plyFromStart / 2;
     const bool white = plyFromStart % 2 == 0;
-    const auto& sans = settings_.russianNotation ? review_.sanRu : review_.sanEn;
+    const auto sans = sanList(review_.moves, review_.sanEn, review_.sanRu);
     return std::to_string(number) + (white ? ". " : "... ") + sans[i];
+}
+
+std::vector<std::string> App::sanList(const std::vector<chess::Move>& moves, const std::vector<std::string>& en,
+                                      const std::vector<std::string>& ru) const {
+    if (!settings_.squareNotation) return settings_.russianNotation ? ru : en;
+    std::vector<std::string> out;
+    for (const chess::Move& m : moves) out.push_back(chess::toSquares(m));
+    return out;
+}
+
+std::string App::moveName(chess::Position& p, chess::Move m) const {
+    if (settings_.squareNotation) return chess::toSquares(m);
+    return chess::toSAN(p, m, settings_.russianNotation ? chess::RussianLetters : chess::EnglishLetters);
 }
 
 void App::openReview(const chess::Game& game, int myColor, Screen returnTo) {
@@ -252,7 +265,7 @@ void App::drawEvalGraph(Rectangle r) {
 void App::drawReviewMoves(Rectangle r) {
     const Theme& t = theme();
     card(r);
-    const auto& sans = settings_.russianNotation ? review_.sanRu : review_.sanEn;
+    const auto sans = sanList(review_.moves, review_.sanEn, review_.sanRu);
     const float rowH = 30;
     const Rectangle area{r.x + 8, r.y + 8, r.width - 16, r.height - 16};
     const int offset = review_.firstMover == chess::Black ? 1 : 0;
@@ -507,9 +520,7 @@ void App::drawAnalysis() {
             Position p = reviewPosition(i);
             const Move best = chess::parseUCI(p, evals_[i].bestUci);
             const std::string bestSan =
-                best.isNone() ? evals_[i].bestUci
-                              : chess::toSAN(p, best, settings_.russianNotation ? chess::RussianLetters
-                                                                                : chess::EnglishLetters);
+                best.isNone() ? evals_[i].bestUci : moveName(p, best);
             text("Лучше было: " + bestSan + "  (" + analysis::formatEval(evals_[i]) + ")", {ic.x + 18, ly}, 16, t.text);
             ly += 26;
         }
@@ -520,8 +531,7 @@ void App::drawAnalysis() {
             for (size_t k = 0; k < cur.pv.size() && k < 6; ++k) {
                 const Move m = chess::parseUCI(p, cur.pv[k]);
                 if (m.isNone()) break;
-                line += chess::toSAN(p, m, settings_.russianNotation ? chess::RussianLetters : chess::EnglishLetters) +
-                        " ";
+                line += moveName(p, m) + " ";
                 p.makeMove(m);
             }
             textWrapped("Дальше лучше всего: " + line, {ic.x + 18, ly, ic.width - 36, 40}, 14, t.sub);

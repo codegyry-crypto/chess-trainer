@@ -65,6 +65,7 @@ std::vector<Field> fields(Settings& s) {
             {"boardPalette", &s.boardPalette},
             {"pieceSet", &s.pieceSet},
             {"russianNotation", &s.russianNotation},
+            {"squareNotation", &s.squareNotation},
             {"showCoords", &s.showCoords},
             {"showLegalMoves", &s.showLegalMoves},
             {"highlightLastMove", &s.highlightLastMove},

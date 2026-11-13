@@ -97,6 +97,9 @@ private:
     bool openReviewFromClipboard();
     chess::Position reviewPosition(int ply) const;
     std::string reviewMoveLabel(int moveIndex) const;
+    std::vector<std::string> sanList(const std::vector<chess::Move>& moves, const std::vector<std::string>& en,
+                                     const std::vector<std::string>& ru) const;
+    std::string moveName(chess::Position& p, chess::Move m) const;
     void startRetry(int moveIndex);
     void cancelRetry();
     void handleRetryMove(chess::Move m);

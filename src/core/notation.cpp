@@ -13,6 +13,13 @@ std::string toUCI(Move m) {
     return s;
 }
 
+std::string toSquares(Move m) {
+    if (m.isNone()) return "--";
+    std::string s = squareName(m.from) + (m.isCapture() ? "x" : "-") + squareName(m.to);
+    if (m.isPromotion()) s += "=" + RussianLetters[m.promo];
+    return s;
+}
+
 Move parseUCI(Position& pos, std::string_view text) {
     if (text.size() < 4 || text.size() > 5) return Move::none();
     const Square from = parseSquare(text.substr(0, 2));

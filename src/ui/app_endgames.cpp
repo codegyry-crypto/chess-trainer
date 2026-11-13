@@ -223,7 +223,7 @@ void App::drawEndgames() {
     y += textWrapped(status, {ic.x + 18, y, ic.width - 36, 0}, 19, sc, true) + 10;
     if (egVerdict_ == Verdict::Lost && egMistake_ > 0) {
         const int ply = 2 * (egMistake_ - 1);
-        const std::string san = std::to_string(ply / 2 + 1) + (egColor_ == chess::White ? ". " : "… ") + eg_.sanRu()[ply];
+        const std::string san = std::to_string(ply / 2 + 1) + (egColor_ == chess::White ? ". " : "… ") + sanList(eg_.moves(), eg_.sanEn(), eg_.sanRu())[ply];
         y += textWrapped("Главная ошибка — " + san + ". Оценка Stockfish до хода " + analysis::formatEval(egEvals_[egMistake_ - 1]) +
                              ", после " + analysis::formatEval(egEvals_[egMistake_]) + ".",
                          {ic.x + 18, y, ic.width - 36, 0}, 16, t.text) + 6;

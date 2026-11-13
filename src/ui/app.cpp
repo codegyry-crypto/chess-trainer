@@ -1020,7 +1020,7 @@ void App::drawMoveList(Rectangle r) {
         text(name, {nx, r.y + 14}, 16, gradeColor(hg), true);
     }
 
-    const auto& sans = settings_.russianNotation ? session_.sanRu() : session_.sanEn();
+    const auto sans = sanList(session_.moves(), session_.sanEn(), session_.sanRu());
     const float rowH = 32, top = r.y + 44, navH = 52;
     const Rectangle area{r.x + 8, top, r.width - 16, r.height - (top - r.y) - navH};
     const int rows = int((sans.size() + 1) / 2);
@@ -1573,6 +1573,7 @@ void App::drawSettingsGame(Rectangle r) {
     };
     const Opt opts[] = {
         {"Русская нотация (Кf3 вместо Nf3)", &settings_.russianNotation},
+        {"Ходы клетками (d4-e6 вместо Кe6)", &settings_.squareNotation},
         {"Координаты на доске", &settings_.showCoords},
         {"Показывать возможные ходы", &settings_.showLegalMoves},
         {"Подсвечивать последний ход", &settings_.highlightLastMove},
@@ -1583,8 +1584,8 @@ void App::drawSettingsGame(Rectangle r) {
         {"Проверять обновления", &settings_.checkUpdates},
     };
     for (const Opt& o : opts) {
-        if (toggle({r.x, y, w, 50}, o.label, *o.value)) applySettings();
-        y += 56;
+        if (toggle({r.x, y, w, 46}, o.label, *o.value)) applySettings();
+        y += 50;
     }
     y += 20;
     text("Подсказка: правой кнопкой мыши рисуются стрелки и кружки (Shift — красные, Alt — синие).",

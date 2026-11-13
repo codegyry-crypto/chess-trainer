@@ -61,11 +61,12 @@ int pieceValue(Piece p) {
 }
 }
 
-bool isSacrifice(Position& after, Move m, Piece captured) {
+bool isSacrifice(const Position& before, Position& after, Move m, Piece captured) {
     const Color mover = ~after.sideToMove();
     for (const Move& c : after.legalMoves()) {
         const Piece target = after.at(c.to);
         if (target == NoPiece || colorOf(target) != mover || pieceValue(target) < 3) continue;
+        if (c.to != m.to && before.isAttacked(c.to, ~mover) && !before.isAttacked(c.to, mover)) continue;
         int loss = pieceValue(target);
         if (after.isAttacked(c.to, mover)) loss -= pieceValue(after.at(c.from));
         if (c.to == m.to) loss -= pieceValue(captured);
@@ -89,6 +90,7 @@ std::vector<MoveReview> reviewMoves(const std::vector<Eval>& evals, const std::v
             inBook = std::find(book.begin(), book.end(), m) != book.end();
         }
         const Piece captured = pos.at(m.to);
+        const Position prev = pos;
         pos.makeMove(m);
         MoveReview& r = out[i];
         if (forced || inBook) r.grade = forced ? Grade::Forced : Grade::Book;
@@ -102,7 +104,7 @@ std::vector<MoveReview> reviewMoves(const std::vector<Eval>& evals, const std::v
         const bool best = !evals[i].bestUci.empty() && toUCI(m) == evals[i].bestUci;
         const bool recapture = i > 0 && moves[i - 1].isCapture() && moves[i - 1].to == m.to;
         const double gap = evals[i].hasSecond ? before - winPercent(sign * evals[i].secondCp) : 0;
-        if ((best || loss < 2) && after >= 45 && isSacrifice(pos, m, captured)) r.grade = Grade::Brilliant;
+        if ((best || loss < 2) && after >= 45 && isSacrifice(prev, pos, m, captured)) r.grade = Grade::Brilliant;
         else if (best && gap >= 20 && !recapture) r.grade = Grade::Great;
         else if (best) r.grade = Grade::Best;
         else if (loss < 2) r.grade = Grade::Excellent;

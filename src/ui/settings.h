@@ -8,6 +8,7 @@ struct Settings {
     std::string boardPalette = "theme";
     std::string pieceSet = "cburnett";
     bool russianNotation = true;
+    bool squareNotation = false;
     bool showCoords = true;
     bool showLegalMoves = true;
     bool highlightLastMove = true;
