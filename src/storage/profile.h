@@ -1,4 +1,7 @@
 #pragma once
+#include "rating/elo.h"
+#include "storage/progress.h"
+
 #include <cstdint>
 #include <filesystem>
 #include <string>
@@ -61,6 +64,8 @@ public:
     int ratedGames() const { return ratedGames_; }
     bool calibrated() const;
     int calibrationLeft() const;
+    int calibrationPlayed() const { return rating::CalibrationGames - calibrationLeft(); }
+    std::vector<rating::CalibrationGame> calibrationGames() const;
 
     RatingChange recordGame(GameRecord g);
 
@@ -83,6 +88,14 @@ public:
     std::vector<GameRecord> recentGames(int limit) const;
     std::vector<std::pair<std::string, int>> ratingHistory() const;
     Stats stats() const;
+
+    Streak streak() const;
+    void markActivity(int day);
+    std::vector<PlanItem> plan(int day) const;
+    void setPlan(int day, const std::vector<PlanItem>& plan);
+    int counter(const std::string& key) const;
+    void bump(const std::string& key);
+    bool unlock(const std::string& achievement, int day);
 
 private:
     void loadState();

@@ -4,6 +4,7 @@
 #include "training/endgames.h"
 #include "training/lessons.h"
 #include "training/puzzles.h"
+#include "training/update.h"
 
 #include <zstd.h>
 
@@ -184,7 +185,19 @@ static void testEndgames() {
     CHECK(judge(Goal::Draw, 15, 5, -9990, false) == Verdict::Lost);
 }
 
+static void testUpdate() {
+    CHECK(update::isNewer("v1.0.1", "1.0.0"));
+    CHECK(update::isNewer("v1.10.0", "1.9.9"));
+    CHECK(update::isNewer("v2.0.0", "1.99.99"));
+    CHECK(!update::isNewer("v1.0.0", "1.0.0"));
+    CHECK(!update::isNewer("v0.9.9", "1.0.0"));
+    CHECK(!update::isNewer("", "1.0.0"));
+    CHECK(!update::isNewer("v1.0", "1.0.0"));
+    CHECK(update::isNewer("v1.1", "1.0.0"));
+}
+
 int main() {
+    testUpdate();
     testEndgames();
     testLessons();
     testRun();

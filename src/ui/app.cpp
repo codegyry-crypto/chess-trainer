@@ -233,6 +233,7 @@ int App::run(int argc, char** argv) {
     pieces_.unloadAll();
     ui::shutdown();
     importProgress_.cancel = true;
+    updateProgress_.cancel = true;
     sound::shutdown();
     CloseWindow();
     return 0;
@@ -284,7 +285,7 @@ void App::frame() {
     ClearBackground(theme().bg);
     beginFrame();
 
-    setInputEnabled(!newGameOpen_);
+    setInputEnabled(!newGameOpen_ && !ratedOpen_);
     switch (screen_) {
     case Screen::Menu: drawMenu(); break;
     case Screen::Game: drawGame(); break;
@@ -294,9 +295,11 @@ void App::frame() {
     case Screen::Puzzles: drawPuzzles(); break;
     case Screen::Lessons: drawLessons(); break;
     case Screen::Endgames: drawEndgames(); break;
+    case Screen::Plan: drawPlan(); break;
     }
     setInputEnabled(true);
     if (newGameOpen_) drawNewGameModal();
+    if (ratedOpen_) drawRatedModal();
 
     drawToast();
     endFrame();
@@ -311,7 +314,7 @@ void App::drawMenu() {
     const float colW = std::min(600.0f, W * 0.5f - left);
 
     text("Шахматный тренер", {left, top}, 40, t.text, true);
-    text("Играй, учись и поднимай рейтинг", {left, top + 54}, 19, t.sub);
+    if (!drawUpdateBanner({left, top + 48, colW, 44})) text("Играй, учись и поднимай рейтинг", {left, top + 54}, 19, t.sub);
 
     struct Item {
         const char* title;
@@ -319,20 +322,36 @@ void App::drawMenu() {
         bool ready;
     };
     const Item items[] = {
-        {"Играть", "Партия с другом или ботом", true},  {"Уроки", "Курс от основ до эндшпиля", true},
+        {"Играть", "Тренировочная партия без рейтинга", true},  {"Уроки", "Курс от основ до эндшпиля", true},
         {"Задачи", "Тактика и твои ошибки", true},     {"Эндшпили", "Доиграй позицию против Stockfish", true},
-        {"Дебюты", "Репертуар с повторением", false},
-        {"Анализ", "Разбор партий Stockfish'ом", true},     {"План дня", "Тренировка на сегодня", false},
+        {"Анализ", "Разбор партий Stockfish'ом", true},     {"Дебюты", "Репертуар с повторением", false},
+        {"План дня", "Тренировка на сегодня", true},
     };
     const float gap = 14, cardW = (colW - gap) / 2, cardH = 104;
     float y = top + 120;
     for (int i = 0; i < 7; ++i) {
-        const Rectangle r{left + (i % 2) * (cardW + gap), y + (i / 2) * (cardH + gap), cardW, cardH};
+        const Rectangle r{left + (i % 2) * (cardW + gap), y + (i / 2) * (cardH + gap), i == 6 ? colW : cardW, cardH};
         const bool hot = items[i].ready && hovered(r);
         roundRect(r, 12, hot ? mix(t.panel, t.text, 0.06f) : t.panel);
         if (i == 0) roundRectLines(r, 12, 2, t.accent);
         text(items[i].title, {r.x + 20, r.y + 22}, 23, items[i].ready ? t.text : t.sub, true);
-        text(items[i].desc, {r.x + 20, r.y + 58}, 16, t.sub);
+        if (i == 6) {
+            const auto& plan = todayPlan();
+            int done = 0;
+            for (const auto& it : plan) done += it.complete();
+            const int streak = storage::liveStreak(profile_.streak(), storage::Profile::today());
+            const bool all = storage::planComplete(plan);
+            text(all ? "Всё выполнено — так держать!"
+                     : "Выполнено " + std::to_string(done) + " из " + std::to_string(plan.size()) + " · около " +
+                           std::to_string(storage::planMinutes(plan)) + " минут",
+                 {r.x + 20, r.y + 58}, 16, all ? t.good : t.sub);
+            drawProgressBar({r.x + 20, r.y + 86, r.width - 40, 6}, plan.empty() ? 0 : float(done) / plan.size(),
+                            all ? t.good : t.accent);
+            const std::string fire = "Серия: " + std::to_string(streak) + " дн.";
+            text(fire, {r.x + r.width - 20 - measure(fire, 17, true).x, r.y + 24}, 17, streak ? t.accent : t.sub, true);
+        } else {
+            text(items[i].desc, {r.x + 20, r.y + 58}, 16, t.sub);
+        }
         if (!items[i].ready) badge({r.x + r.width - 70, r.y + 18}, "скоро", t.panel2, t.sub, 13);
         if (hot) setHandCursor();
         if (items[i].ready && clicked(r) && i == 0) newGameOpen_ = true;
@@ -345,27 +364,17 @@ void App::drawMenu() {
             egIdx_ = -1;
             screen_ = Screen::Endgames;
         }
-        if (items[i].ready && clicked(r) && i == 5) {
-            const auto last = profile_.recentGames(1);
-            std::string err;
-            const auto games = last.empty() ? std::vector<chess::Game>{} : chess::parsePGN(last[0].pgn, &err);
-            if (!games.empty() && !games[0].moves.empty())
-                openReview(games[0], last[0].color == "w" ? 0 : 1, Screen::Menu);
-            else {
-                review_ = Review{};
-                reviewReturn_ = Screen::Menu;
-                screen_ = Screen::Analysis;
-            }
-        }
+        if (items[i].ready && clicked(r) && i == 4) openLastReview(Screen::Menu);
+        if (items[i].ready && clicked(r) && i == 6) screen_ = Screen::Plan;
     }
     y += 4 * (cardH + gap) + 10;
-    if (button({left, y, 240, 46}, "Быстрая игра", Style::Primary, true, 18)) quickMatch();
+    if (button({left, y, 240, 46}, "Рейтинговая игра", Style::Primary, true, 18)) openRated();
     if (button({left + 252, y, 160, 46}, "Настройки")) {
         settingsReturn_ = Screen::Menu;
         screen_ = Screen::Settings;
     }
     if (button({left + 424, y, 110, 46}, "Выход", Style::Ghost)) quit_ = true;
-    text("Быстрая игра — бот под твой рейтинг, партия идёт в рейтинг", {left, y + 56}, 14, t.sub);
+    text("Соперника подбирает система, партия идёт в рейтинг", {left, y + 56}, 14, t.sub);
 
     const float rx = left + colW + 56;
     const float rw = W - rx - 56;
@@ -385,7 +394,8 @@ void App::drawMenu() {
         drawLevelBadge({pr.x + 44, pr.y + 42}, 28, elo, cal);
         if (cal) {
             text("Калибровка", {pr.x + 86, pr.y + 14}, 19, t.text, true);
-            text("Сыграй ещё " + std::to_string(profile_.calibrationLeft()) + " рейтинговых партий с ботами",
+            text("Калибровка " + std::to_string(profile_.calibrationPlayed()) + " из " +
+                     std::to_string(rating::CalibrationGames) + " — играй рейтинговые партии",
                  {pr.x + 86, pr.y + 44}, 15, t.sub);
         } else {
             const rating::Level& L = rating::levelFor(elo);
@@ -416,11 +426,7 @@ void App::drawNewGameModal() {
     y += 24;
     if (chip({x0, y, 200, 44}, "Бот", vsBot)) settings_.vsBot = true;
     if (chip({x0 + 210, y, 200, 44}, "Друг рядом", !vsBot)) settings_.vsBot = false;
-    if (vsBot && toggle({x0 + 430, y, 210, 44}, "Рейтинговая", settings_.ratedGames) && settings_.ratedGames)
-        settings_.coachMode = false;
-    if (toggle({x0 + (vsBot ? 650.0f : 430.0f), y, vsBot ? inner - 650 : 210.0f, 44}, "Тренер", settings_.coachMode) &&
-        settings_.coachMode)
-        settings_.ratedGames = false;
+    toggle({x0 + 430, y, 210, 44}, "Тренер", settings_.coachMode);
     y += 60;
 
     if (vsBot) {
@@ -471,6 +477,8 @@ void App::drawNewGameModal() {
     const float by = r.y + r.height - 24 - 48;
     if (screen_ == Screen::Game && rated_ && !session_.over() && session_.moves().size() >= 2)
         text("Текущая рейтинговая партия будет засчитана как поражение", {x0, by + 14}, 15, t.danger);
+    else if (vsBot)
+        text("Тренировочная партия — в рейтинг не идёт", {x0, by + 14}, 15, t.sub);
     if (button({r.x + r.width - 24 - 200, by, 200, 48}, "Начать", Style::Primary, true, 19) ||
         IsKeyPressed(KEY_ENTER))
         startGame(tcs[settings_.tcIndex]);
@@ -480,7 +488,7 @@ void App::drawNewGameModal() {
 }
 
 void App::startGame(const TimeControl& tc, const std::string& fen, const engine::BotProfile* practiceBot,
-                    chess::Color practiceColor) {
+                    chess::Color practiceColor, bool rated) {
     forfeitIfRated();
     cancelBot();
     bot_ = practiceBot ? practiceBot : settings_.vsBot ? engine::botById(settings_.botId) : nullptr;
@@ -498,7 +506,7 @@ void App::startGame(const TimeControl& tc, const std::string& fen, const engine:
     searcher_.clear();
     lastBotScore_ = 0;
     coachOn_ = !practiceBot && settings_.coachMode;
-    rated_ = bot_ && !practiceBot && settings_.ratedGames && !coachOn_;
+    rated_ = rated;
     pendingMove_ = Move::none();
     recorded_ = false;
     hasChange_ = false;
@@ -592,10 +600,7 @@ void App::updateBot() {
 void App::undoMove() {
     cancelBot();
     if (!session_.canUndo()) return;
-    if (rated_ && !session_.over()) {
-        rated_ = false;
-        toast("Ход отменён — партия стала тренировочной");
-    }
+    if (rated_ && !session_.over()) return;
     session_.undo();
     if (bot_ && session_.canUndo() && session_.position().sideToMove() != humanColor_) session_.undo();
     liveVersion_ = -1;
@@ -635,6 +640,7 @@ void App::recordFinishedGame() {
     if (!profile_.isOpen()) return;
     lastChange_ = profile_.recordGame(g);
     hasChange_ = true;
+    progress(g.rated ? "rated" : "game");
     if (rated_ && aborted) toast("Партия прервана в самом начале — в рейтинг не идёт");
 }
 
@@ -644,17 +650,82 @@ void App::forfeitIfRated() {
     recordFinishedGame();
 }
 
-void App::quickMatch() {
-    const int target = profile_.rating();
-    const engine::BotProfile* best = &engine::bots().front();
-    for (const engine::BotProfile& b : engine::bots())
-        if (std::abs(b.rating - target) < std::abs(best->rating - target)) best = &b;
-    settings_.vsBot = true;
-    settings_.botId = best->id;
-    settings_.colorChoice = 1;
-    settings_.ratedGames = true;
-    startGame(timeControls()[std::clamp(settings_.tcIndex, 0, int(timeControls().size()) - 1)]);
-    toast("Соперник по твоему рейтингу: " + best->name + " (" + std::to_string(best->rating) + ")");
+void App::findOpponent() {
+    const bool cal = !profile_.calibrated();
+    const int target = cal ? rating::calibrationTarget(profile_.calibrationGames()) : profile_.rating();
+    foundBot_ = engine::pickOpponent(target, cal, !stockfishExe_.empty(), rng_);
+    foundColor_ = rng_() % 2 ? chess::White : chess::Black;
+}
+
+void App::openRated() {
+    ratedOpen_ = true;
+    ratedPhase_ = 0;
+}
+
+void App::startRated() {
+    forfeitIfRated();
+    ratedBot_ = foundBot_;
+    ratedOpen_ = false;
+    startGame(timeControls()[std::clamp(settings_.tcIndex, 0, int(timeControls().size()) - 1)], {}, &ratedBot_,
+              foundColor_, true);
+}
+
+void App::drawRatedModal() {
+    const Theme& t = theme();
+    const float W = (float)screenW(), H = (float)screenH();
+    DrawRectangle(0, 0, (int)W, (int)H, Color{0, 0, 0, 140});
+    const float mw = 640, mh = 380;
+    const Rectangle r{std::floor((W - mw) / 2), std::floor((H - mh) / 2), mw, mh};
+    const float x0 = r.x + 24, inner = mw - 48;
+    card(r, 16);
+    text("Рейтинговая игра", {x0, r.y + 24}, 28, t.text, true);
+    const std::string status = profile_.calibrated()
+                                   ? std::to_string(profile_.rating()) + " Elo · уровень " +
+                                         std::to_string(rating::levelFor(profile_.rating()).number)
+                                   : "Калибровка: партия " + std::to_string(profile_.calibrationPlayed() + 1) +
+                                         " из " + std::to_string(rating::CalibrationGames);
+    text(status, {x0, r.y + 64}, 16, t.sub);
+    const float by = r.y + r.height - 24 - 48;
+    const auto& tcs = timeControls();
+    settings_.tcIndex = std::clamp(settings_.tcIndex, 0, int(tcs.size()) - 1);
+
+    if (ratedPhase_ == 0) {
+        const float y = r.y + 110;
+        text("Контроль времени", {x0, y}, 15, t.sub);
+        const float n = float(tcs.size()), tw = (inner - (n - 1) * 8) / n;
+        for (size_t i = 0; i < tcs.size(); ++i)
+            if (chip({x0 + i * (tw + 8), y + 24, tw, 44}, tcs[i].label, int(i) == settings_.tcIndex, true,
+                     i == 0 ? 13.0f : 15.0f))
+                settings_.tcIndex = int(i);
+        textWrapped("Соперника и цвет выбирает система. Подсказок и отмены хода нет.", {x0, y + 90, inner, 50}, 15,
+                    t.sub);
+        if (button({r.x + r.width - 24 - 220, by, 220, 48}, "Найти соперника", Style::Primary, true, 18) ||
+            IsKeyPressed(KEY_ENTER)) {
+            ratedPhase_ = 1;
+            ratedSearchUntil_ = GetTime() + 1.5;
+        }
+    } else if (ratedPhase_ == 1) {
+        const std::string dots(size_t(int(GetTime() * 3) % 4), '.');
+        textCentered("Поиск соперника" + dots, {r.x, r.y + 150, r.width, 60}, 24, t.text, true);
+        if (GetTime() >= ratedSearchUntil_) {
+            findOpponent();
+            ratedPhase_ = 2;
+        }
+    } else {
+        const engine::BotProfile& b = foundBot_;
+        const Rectangle c{x0, r.y + 110, inner, 130};
+        roundRect(c, 12, t.panel2);
+        DrawCircleV({c.x + 60, c.y + 65}, 38, hex(b.color));
+        textCentered(b.name.substr(0, 2), {c.x + 22, c.y + 27, 76, 76}, 30, WHITE, true);
+        text(b.name, {c.x + 120, c.y + 18}, 26, t.text, true);
+        text(std::to_string(b.rating) + " Elo · " + b.style, {c.x + 120, c.y + 56}, 16, t.sub);
+        text(foundColor_ == chess::White ? "Ты играешь белыми" : "Ты играешь чёрными", {c.x + 120, c.y + 88}, 16,
+             t.accent, true);
+        if (button({r.x + r.width - 24 - 200, by, 200, 48}, "Играть", Style::Primary, true, 19) ||
+            IsKeyPressed(KEY_ENTER))
+            return startRated();
+    }
+    if (button({r.x + 24, by, 130, 48}, "Отмена", Style::Ghost) || IsKeyPressed(KEY_ESCAPE)) ratedOpen_ = false;
 }
 
 std::string App::resultTitle() const {
@@ -756,7 +827,8 @@ void App::drawGame() {
 
     const float bw = (PanelW - 8) / 2;
     auto cell = [&](int i) { return Rectangle{px + (i % 2) * (bw + 8), py + (i / 2) * 54.0f, bw, 46}; };
-    if (button(cell(0), "Отменить ход", Style::Secondary, session_.canUndo())) undoMove();
+    if (button(cell(0), "Отменить ход", Style::Secondary, session_.canUndo() && !(rated_ && !session_.over())))
+        undoMove();
     if (button(cell(1), "Перевернуть")) flipped_ = !flipped_;
     if (button(cell(2), "Ничья", Style::Secondary, !session_.over() && !session_.moves().empty())) {
         offerDraw();
@@ -1001,7 +1073,9 @@ void App::drawGameOver(Rectangle b) {
     if (bot_) {
         if (button({r.x + 24, y + 60, r.width - 48, 46}, "Разбор партии со Stockfish", Style::Secondary))
             openReview(session_.toGame(), humanColor_ == chess::White ? 0 : 1, Screen::Game);
-        if (button({r.x + 24, y, bw, 50}, "Реванш", Style::Primary)) {
+        if (rated_) {
+            if (button({r.x + 24, y, bw, 50}, "Следующая", Style::Primary)) openRated();
+        } else if (button({r.x + 24, y, bw, 50}, "Реванш", Style::Primary)) {
             if (!session_.startFen().empty()) {
                 startGame(session_.timeControl(), session_.startFen(), bot_, humanColor_);
             } else {
@@ -1088,33 +1162,42 @@ void App::savePGN() {
 
 void App::drawProfile() {
     const Theme& t = theme();
-    const float W = (float)screenW(), H = (float)screenH();
     if (button({M + 8, M + 4, 120, 42}, "‹ Назад", Style::Ghost) || (inputEnabled() && IsKeyPressed(KEY_ESCAPE)))
         screen_ = Screen::Menu;
     text("Профиль", {M + 16, M + 60}, 30, t.text, true);
-    const std::string course = "Уроки: " + std::to_string(lessonsDone_.size()) + " из " + std::to_string(lessonCount()) + " ›";
-    const Rectangle cr{M + 16 + measure("Профиль", 30, true).x + 24, M + 66, measure(course, 17).x, 24};
-    text(course, {cr.x, cr.y}, 17, hovered(cr) ? t.text : t.sub);
-    if (hovered(cr)) setHandCursor();
-    if (clicked(cr)) lessonIdx_ = -1, screen_ = Screen::Lessons;
+    const char* tabs[] = {"Обзор", "Партии", "Достижения"};
+    float tx = M + 16 + measure("Профиль", 30, true).x + 32;
+    for (int i = 0; i < 3; ++i) {
+        const float w = measure(tabs[i], 16).x + 36;
+        if (chip({tx, M + 62, w, 38}, tabs[i], profileTab_ == i)) profileTab_ = i;
+        tx += w + 8;
+    }
+    const float top = M + 116;
+    if (profileTab_ == 0) drawProfileOverview(top);
+    if (profileTab_ == 1) drawProfileGames(top);
+    if (profileTab_ == 2) drawProfileAchievements(top);
+}
 
+void App::drawProfileOverview(float top) {
+    const float W = (float)screenW(), H = (float)screenH();
+    const Theme& t = theme();
     const int elo = profile_.rating();
     const bool cal = !profile_.calibrated();
     const rating::Level& L = rating::levelFor(elo);
-    const storage::Stats st = profile_.stats();
-    const float x0 = M + 16, top = M + 112, inner = W - 2 * x0;
-
+    const float x0 = M + 16, inner = W - 2 * x0;
     const Rectangle lc{x0, top, 470, 210};
     card(lc);
     drawLevelBadge({lc.x + 92, lc.y + 105}, 70, elo, cal);
     const float tx = lc.x + 186;
     if (cal) {
         text("Калибровка", {tx, lc.y + 30}, 28, t.text, true);
-        text("Осталось партий: " + std::to_string(profile_.calibrationLeft()), {tx, lc.y + 74}, 17, t.sub);
+        text("Калибровка " + std::to_string(profile_.calibrationPlayed()) + " из " +
+                 std::to_string(rating::CalibrationGames),
+             {tx, lc.y + 74}, 17, t.sub);
         drawProgressBar({tx, lc.y + 112, lc.width - (tx - lc.x) - 24, 10},
                         float(rating::CalibrationGames - profile_.calibrationLeft()) / rating::CalibrationGames,
                         t.accent);
-        textWrapped("Сыграй рейтинговые партии с ботами — программа определит твой уровень.",
+        textWrapped("Сыграй рейтинговые партии — система подберёт соперников и определит твой уровень.",
                     {tx, lc.y + 138, lc.width - (tx - lc.x) - 24, 60}, 14, t.sub);
     } else {
         text(std::to_string(elo), {tx, lc.y + 22}, 46, t.text, true);
@@ -1127,39 +1210,66 @@ void App::drawProfile() {
         text("Лучший рейтинг: " + std::to_string(profile_.peak()), {tx, lc.y + 164}, 15, t.sub);
     }
 
-    const Rectangle sc{lc.x + lc.width + 16, top, inner - lc.width - 16, 210};
-    card(sc);
-    text("Статистика партий с ботами", {sc.x + 20, sc.y + 16}, 16, t.sub);
-    const std::string streak = st.streak > 0   ? std::to_string(st.streak) + " W"
-                               : st.streak < 0 ? std::to_string(-st.streak) + " L"
-                                               : "—";
-    const std::pair<std::string, std::string> tiles[] = {
-        {"Партий", std::to_string(st.games)}, {"Побед", std::to_string(st.wins)},
-        {"Ничьих", std::to_string(st.draws)}, {"Поражений", std::to_string(st.losses)},
-        {"Серия", streak},                    {"Лучшая серия", std::to_string(st.bestStreak)}};
-    const float tw = (sc.width - 40 - 5 * 10) / 6;
-    for (int i = 0; i < 6; ++i) {
-        const Rectangle tr{sc.x + 20 + i * (tw + 10), sc.y + 50, tw, 84};
-        roundRect(tr, 10, t.panel2);
-        text(tiles[i].first, {tr.x + 12, tr.y + 12}, 13, t.sub);
-        ::Color vc = t.text;
-        if (i == 1) vc = t.good;
-        if (i == 3) vc = t.danger;
-        if (i == 4) vc = st.streak > 0 ? t.good : (st.streak < 0 ? t.danger : t.sub);
-        text(tiles[i].second, {tr.x + 12, tr.y + 38}, 28, vc, true);
-    }
-    const float lw = (sc.width - 40 - 9 * 4) / 10;
-    for (int i = 0; i < 10; ++i) {
-        const rating::Level& lv = rating::levels()[i];
-        const Rectangle seg{sc.x + 20 + i * (lw + 4), sc.y + 152, lw, 10};
-        const bool here = !cal && lv.number == L.number;
-        roundRect(seg, 5, here ? hex(lv.color) : fade(hex(lv.color), 0.3f));
-        const std::string lbl = std::to_string(lv.number);
-        text(lbl, {seg.x + (lw - measure(lbl, 13, true).x) / 2, seg.y + 16}, 13, here ? t.text : t.sub, true);
-    }
 
+    const float sw = (inner - lc.width - 32) / 2;
+    const Rectangle pc{lc.x + lc.width + 16, top, sw, 210};
+    card(pc);
+    text("Рейтинг задач", {pc.x + 20, pc.y + 16}, 16, t.sub);
+    text(std::to_string(profile_.puzzleRating()), {pc.x + 20, pc.y + 44}, 46, t.text, true);
+    text("Решено задач: " + std::to_string(profile_.counter("puzzles_solved")), {pc.x + 20, pc.y + 120}, 15, t.sub);
+    text("Рекорд «Штурма»: " + std::to_string(profile_.stormBest()), {pc.x + 20, pc.y + 146}, 15, t.sub);
+
+    const storage::Streak sk = profile_.streak();
+    const int streak = storage::liveStreak(sk, storage::Profile::today());
+    const Rectangle kc{pc.x + sw + 16, top, sw, 210};
+    card(kc);
+    text("Серия дней", {kc.x + 20, kc.y + 16}, 16, t.sub);
+    text(std::to_string(streak), {kc.x + 20, kc.y + 44}, 46, streak ? t.accent : t.text, true);
+    text(sk.lastDay == storage::Profile::today() ? "Сегодня уже занимался" : "Позанимайся сегодня, чтобы не прервать",
+         {kc.x + 20, kc.y + 120}, 15, t.sub);
+    text("Лучшая серия: " + std::to_string(sk.best), {kc.x + 20, kc.y + 146}, 15, t.sub);
+
+    const float row2 = top + 226, hw = (inner - 16) / 2;
+    const Rectangle prc{x0, row2, hw, 170};
+    card(prc);
+    text("Прогресс", {prc.x + 20, prc.y + 16}, 16, t.sub);
+    const std::pair<std::string, std::pair<size_t, size_t>> bars[] = {
+        {"Уроки", {lessonsDone_.size(), lessonCount()}}, {"Эндшпили", {egDone_.size(), training::endgames().size()}}};
+    for (int i = 0; i < 2; ++i) {
+        const float y = prc.y + 50 + i * 50;
+        const auto [done, total] = bars[i].second;
+        const std::string lbl = bars[i].first + ": " + std::to_string(done) + " из " + std::to_string(total);
+        const Rectangle hit{prc.x + 20, y, prc.width - 40, 40};
+        text(lbl + " ›", {hit.x, y}, 16, hovered(hit) ? t.accent : t.text);
+        drawProgressBar({hit.x, y + 26, hit.width, 8}, total ? float(done) / total : 0, done >= total ? t.good : t.accent);
+        if (hovered(hit)) setHandCursor();
+        if (clicked(hit) && i == 0) lessonIdx_ = -1, screen_ = Screen::Lessons;
+        if (clicked(hit) && i == 1) egIdx_ = -1, screen_ = Screen::Endgames;
+    }
+    text("Планов дня выполнено: " + std::to_string(profile_.counter("plans_done")), {prc.x + 20, prc.y + 142}, 14, t.sub);
+
+    const Rectangle wc{x0 + hw + 16, row2, hw, 170};
+    card(wc);
+    text("Слабые места", {wc.x + 20, wc.y + 16}, 16, t.sub);
+    const auto srs = profile_.srsItems(storage::Profile::today(), false, "");
+    const auto weak = storage::weakThemes(srs, training::pickerThemes());
+    if (weak.empty()) text("Пока нет — ошибки в задачах появятся здесь", {wc.x + 20, wc.y + 50}, 15, t.sub);
+    for (size_t i = 0; i < weak.size() && i < 3; ++i) {
+        const float y = wc.y + 46 + i * 26;
+        text(training::themeName(weak[i].first), {wc.x + 20, y}, 16, t.text);
+        text(std::to_string(weak[i].second), {wc.x + 230, y}, 16, t.danger, true);
+    }
+    int phases[3] = {};
+    for (const auto& it : srs)
+        if (it.source == "mine") ++phases[storage::fenPhase(it.fen)];
+    const std::string ph = "Ошибки в партиях: дебют " + std::to_string(phases[0]) + " · миттельшпиль " +
+                           std::to_string(phases[1]) + " · эндшпиль " + std::to_string(phases[2]);
+    text(ph, {wc.x + 20, wc.y + 136}, 14, t.sub);
+
+    top = row2 + 186;
     const auto hist = profile_.ratingHistory();
-    const Rectangle gc{x0, top + 226, inner, 250};
+    const Rectangle gc{x0, top, inner, H - M - top};
+    if (gc.height < 140) return;
     card(gc);
     text("Рейтинг", {gc.x + 20, gc.y + 14}, 16, t.sub);
     const Rectangle plot{gc.x + 64, gc.y + 46, gc.width - 92, gc.height - 76};
@@ -1199,7 +1309,48 @@ void App::drawProfile() {
         text("партии →", {plot.x + plot.width - 60, plot.y + plot.height + 8}, 13, t.sub);
     }
 
-    const Rectangle hc{x0, gc.y + gc.height + 16, inner, H - M - (gc.y + gc.height + 16)};
+}
+
+void App::drawProfileGames(float top) {
+    const float W = (float)screenW(), H = (float)screenH();
+    const Theme& t = theme();
+    const int elo = profile_.rating();
+    const bool cal = !profile_.calibrated();
+    const rating::Level& L = rating::levelFor(elo);
+    const float x0 = M + 16, inner = W - 2 * x0;
+    const storage::Stats st = profile_.stats();
+    const Rectangle sc{x0, top, inner, 210};
+    card(sc);
+    text("Статистика партий с ботами", {sc.x + 20, sc.y + 16}, 16, t.sub);
+    const std::string streak = st.streak > 0   ? std::to_string(st.streak) + " W"
+                               : st.streak < 0 ? std::to_string(-st.streak) + " L"
+                                               : "—";
+    const std::pair<std::string, std::string> tiles[] = {
+        {"Партий", std::to_string(st.games)}, {"Побед", std::to_string(st.wins)},
+        {"Ничьих", std::to_string(st.draws)}, {"Поражений", std::to_string(st.losses)},
+        {"Серия", streak},                    {"Лучшая серия", std::to_string(st.bestStreak)}};
+    const float tw = (sc.width - 40 - 5 * 10) / 6;
+    for (int i = 0; i < 6; ++i) {
+        const Rectangle tr{sc.x + 20 + i * (tw + 10), sc.y + 50, tw, 84};
+        roundRect(tr, 10, t.panel2);
+        text(tiles[i].first, {tr.x + 12, tr.y + 12}, 13, t.sub);
+        ::Color vc = t.text;
+        if (i == 1) vc = t.good;
+        if (i == 3) vc = t.danger;
+        if (i == 4) vc = st.streak > 0 ? t.good : (st.streak < 0 ? t.danger : t.sub);
+        text(tiles[i].second, {tr.x + 12, tr.y + 38}, 28, vc, true);
+    }
+    const float lw = (sc.width - 40 - 9 * 4) / 10;
+    for (int i = 0; i < 10; ++i) {
+        const rating::Level& lv = rating::levels()[i];
+        const Rectangle seg{sc.x + 20 + i * (lw + 4), sc.y + 152, lw, 10};
+        const bool here = !cal && lv.number == L.number;
+        roundRect(seg, 5, here ? hex(lv.color) : fade(hex(lv.color), 0.3f));
+        const std::string lbl = std::to_string(lv.number);
+        text(lbl, {seg.x + (lw - measure(lbl, 13, true).x) / 2, seg.y + 16}, 13, here ? t.text : t.sub, true);
+    }
+
+    const Rectangle hc{x0, top + 226, inner, H - M - top - 226};
     if (hc.height < 80) return;
     card(hc);
     text("Последние партии — нажми, чтобы разобрать", {hc.x + 20, hc.y + 14}, 16, t.sub);
@@ -1401,6 +1552,7 @@ void App::drawSettingsGame(Rectangle r) {
         {"Стрелка хода при просмотре партии", &settings_.showMoveArrow},
         {"Игра вдвоём: поворачивать доску к тому, чей ход", &settings_.autoFlip},
         {"Оценки ходов во время партии", &settings_.liveGrades},
+        {"Проверять обновления", &settings_.checkUpdates},
     };
     for (const Opt& o : opts) {
         if (toggle({r.x, y, w, 50}, o.label, *o.value)) applySettings();
@@ -1463,7 +1615,7 @@ void App::drawSettingsSound(Rectangle r) {
 void App::drawSettingsAbout(Rectangle r) {
     const Theme& t = theme();
     text("Шахматный тренер", {r.x, r.y + 8}, 24, t.text, true);
-    text("Версия 0.2: правила, доска, игра вдвоём, темы и наборы фигур.", {r.x, r.y + 46}, 16, t.sub);
+    text("Версия " CHESS_VERSION, {r.x, r.y + 46}, 16, t.sub);
     text("Программа бесплатная. Фигуры и звуки принадлежат их авторам:", {r.x, r.y + 90}, 17, t.text);
     float y = r.y + 126;
     for (const std::string& c : credits_) {

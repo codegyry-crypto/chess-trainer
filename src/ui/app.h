@@ -32,7 +32,7 @@ public:
     int run(int argc, char** argv);
 
 private:
-    enum class Screen { Menu, Game, Settings, Profile, Analysis, Puzzles, Lessons, Endgames };
+    enum class Screen { Menu, Game, Settings, Profile, Analysis, Puzzles, Lessons, Endgames, Plan };
     enum class PuzzleState { Empty, Setup, Play, Reply, Solved, Wrong };
     enum class SettingsTab { Look, Pieces, Game, Sound, About };
 
@@ -41,6 +41,7 @@ private:
     void frame();
 
     void drawMenu();
+    bool drawUpdateBanner(Rectangle r);
     void openPuzzles(PuzzleMode mode);
     bool pickPuzzle(training::Puzzle& out);
     void nextPuzzle();
@@ -59,6 +60,15 @@ private:
     void drawCoachCard(Rectangle r);
     void drawBlunderWarning(Rectangle boardRect);
     void drawProfile();
+    void drawProfileOverview(float top);
+    void drawProfileGames(float top);
+    void drawProfileAchievements(float top);
+    std::vector<storage::PlanItem>& todayPlan();
+    void progress(const std::string& kind, const std::string& arg = {});
+    void checkAchievements();
+    void startPlanItem(const storage::PlanItem& item);
+    void openLastReview(Screen returnTo);
+    void drawPlan();
     void openLesson(int sec, int idx);
     void setLessonStep(int step);
     void lessonMove(chess::Move m);
@@ -93,7 +103,10 @@ private:
     void drawRatingBlock(Rectangle r);
     void recordFinishedGame();
     void forfeitIfRated();
-    void quickMatch();
+    void openRated();
+    void findOpponent();
+    void startRated();
+    void drawRatedModal();
     void drawNewGameModal();
     void drawGame();
     void drawSettings();
@@ -113,7 +126,7 @@ private:
     void animateNavigation();
 
     void startGame(const TimeControl& tc, const std::string& fen = {}, const engine::BotProfile* practiceBot = nullptr,
-                   chess::Color practiceColor = chess::White);
+                   chess::Color practiceColor = chess::White, bool rated = false);
     void updateBot();
     void cancelBot();
     void undoMove();
@@ -135,6 +148,11 @@ private:
 
     Screen screen_ = Screen::Menu;
     bool newGameOpen_ = false;
+    bool ratedOpen_ = false;
+    int ratedPhase_ = 0;
+    double ratedSearchUntil_ = 0;
+    engine::BotProfile foundBot_, ratedBot_;
+    chess::Color foundColor_ = chess::White;
     bool gameOverDismissed_ = false;
     bool flipped_ = false;
     SettingsTab tab_ = SettingsTab::Pieces;
@@ -212,12 +230,20 @@ private:
     std::filesystem::path morePuzzlesFile_;
     training::ImportProgress importProgress_;
     std::future<std::vector<training::Puzzle>> importFuture_;
+    std::future<std::string> updateCheck_;
+    std::future<bool> updateDownload_;
+    training::ImportProgress updateProgress_;
+    std::string updateTag_;
+    bool updateChecked_ = false;
     double puzzleTimer_ = 0, stormEnd_ = 0;
     int puzzleHint_ = 0, puzzleDelta_ = 0, stormScore_ = 0, stormErrors_ = 0;
     bool puzzleFailed_ = false;
 
     std::vector<training::Section> lessons_;
     std::unordered_set<std::string> lessonsDone_;
+    std::vector<storage::PlanItem> plan_;
+    int planDay_ = -1;
+    int profileTab_ = 0;
     int lessonSec_ = 0, lessonIdx_ = -1, lessonStep_ = 0;
     float lessonScroll_ = 0;
 

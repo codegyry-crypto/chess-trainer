@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
-project(ChessTrainer LANGUAGES C CXX)
+project(ChessTrainer VERSION 1.1.0 LANGUAGES C CXX)
+file(WRITE ${CMAKE_BINARY_DIR}/version.iss "#define AppVer \"${PROJECT_VERSION}\"")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -63,6 +64,7 @@ target_compile_options(chess_engine PRIVATE ${PROJECT_WARNINGS})
 add_library(chess_profile STATIC
     src/rating/elo.cpp
     src/storage/profile.cpp
+    src/storage/progress.cpp
 )
 target_include_directories(chess_profile PUBLIC src)
 target_link_libraries(chess_profile PUBLIC sqlite3)
@@ -72,10 +74,11 @@ add_library(chess_training STATIC
     src/training/puzzles.cpp
     src/training/puzzle_import.cpp
     src/training/download.cpp
+    src/training/update.cpp
     src/training/lessons.cpp
     src/training/endgames.cpp
 )
-target_link_libraries(chess_training PUBLIC chess_core zstd winhttp)
+target_link_libraries(chess_training PUBLIC chess_core zstd winhttp shell32)
 target_compile_options(chess_training PRIVATE ${PROJECT_WARNINGS})
 
 add_library(chess_analysis STATIC
@@ -94,8 +97,10 @@ add_executable(ChessTrainer WIN32
     src/ui/app_coach.cpp
     src/ui/app_lessons.cpp
     src/ui/app_endgames.cpp
+    src/ui/app_plan.cpp
     src/ui/app_puzzles.cpp
     src/ui/app_shots.cpp
+    src/ui/app_update.cpp
     src/ui/board_view.cpp
     src/ui/game_session.cpp
     src/ui/grades.cpp
@@ -110,7 +115,7 @@ target_include_directories(ChessTrainer PRIVATE src)
 target_include_directories(ChessTrainer SYSTEM PRIVATE third_party/nanosvg)
 target_link_libraries(ChessTrainer PRIVATE chess_engine chess_profile chess_analysis chess_training raylib shell32 ole32 dwmapi)
 target_compile_options(ChessTrainer PRIVATE ${PROJECT_WARNINGS})
-target_compile_definitions(ChessTrainer PRIVATE _CRT_SECURE_NO_WARNINGS
+target_compile_definitions(ChessTrainer PRIVATE _CRT_SECURE_NO_WARNINGS CHESS_VERSION="${PROJECT_VERSION}"
     CHESS_SOURCE_ASSETS="${CMAKE_SOURCE_DIR}/assets")
 if(MSVC)
     target_link_options(ChessTrainer PRIVATE /ENTRY:mainCRTStartup)
@@ -134,7 +139,7 @@ target_link_libraries(engine_tests PRIVATE chess_engine)
 target_compile_options(engine_tests PRIVATE ${PROJECT_WARNINGS})
 add_test(NAME engine_tests COMMAND engine_tests)
 add_executable(rating_tests tests/rating_tests.cpp)
-target_link_libraries(rating_tests PRIVATE chess_profile)
+target_link_libraries(rating_tests PRIVATE chess_profile chess_engine)
 target_compile_options(rating_tests PRIVATE ${PROJECT_WARNINGS})
 add_test(NAME rating_tests COMMAND rating_tests)
 add_executable(analysis_tests tests/analysis_tests.cpp)

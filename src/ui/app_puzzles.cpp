@@ -83,6 +83,10 @@ void App::nextPuzzle() {
 void App::finishPuzzle(bool solved) {
     if (!puzzleFailed_ && rated(pmode_)) puzzleDelta_ = profile_.recordPuzzle(run_.puzzle().rating, solved);
     const int today = storage::Profile::today();
+    if (solved && !puzzleFailed_) {
+        profile_.bump("puzzles_solved");
+        progress("puzzles", pmode_ == PuzzleMode::Theme ? puzzleTheme_ : "");
+    }
     if (pmode_ == PuzzleMode::Mine || pmode_ == PuzzleMode::Repeat) profile_.srsResult(run_.puzzle().id, solved && !puzzleFailed_, today);
     else if (!solved && pmode_ != PuzzleMode::Storm)
         profile_.srsAdd({run_.puzzle().id, run_.puzzle().fen, training::joinMoves(run_.puzzle().moves),

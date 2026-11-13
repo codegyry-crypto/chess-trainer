@@ -3,6 +3,8 @@
 #include "core/notation.h"
 
 #include <algorithm>
+#include <cmath>
+#include <iterator>
 #include <sstream>
 
 namespace engine {
@@ -132,6 +134,52 @@ const BotProfile* botById(const std::string& id) {
     for (const BotProfile& b : bots())
         if (b.id == id) return &b;
     return nullptr;
+}
+
+BotProfile strengthBot(int elo) {
+    const BotProfile *lo = nullptr, *hi = nullptr;
+    for (const BotProfile& b : bots()) {
+        if (b.stockfishElo > 0) continue;
+        if (b.rating <= elo) lo = &b;
+        if (b.rating >= elo && !hi) hi = &b;
+    }
+    if (!lo) lo = hi;
+    if (!hi) hi = lo;
+    BotProfile r = *lo;
+    r.rating = std::clamp(elo, bots().front().rating, hi->rating);
+    if (hi == lo) return r;
+    const double t = double(elo - lo->rating) / (hi->rating - lo->rating);
+    auto lerp = [t](double a, double b) { return a + (b - a) * t; };
+    r.noise = int(std::lround(lerp(lo->noise, hi->noise)));
+    r.blunderChance = lerp(lo->blunderChance, hi->blunderChance);
+    r.depth = int(std::lround(lerp(lo->depth, hi->depth)));
+    if (lo->fullSearch == hi->fullSearch) r.timeMs = int(std::lround(lerp(lo->timeMs, hi->timeMs)));
+    return r;
+}
+
+BotProfile pickOpponent(int target, bool calibrating, bool stockfish, std::mt19937& rng) {
+    const int elo = (calibrating ? target : target + int(rng() % 201) - 100) / 10 * 10;
+    if (stockfish && elo > 2000) {
+        BotProfile sf = *botById("master");
+        sf.id = "stockfish";
+        sf.name = "Stockfish";
+        sf.rating = sf.stockfishElo = elo;
+        sf.style = "Подстраивается под твою силу";
+        sf.desc = "Stockfish с ограниченной силой под твой рейтинг.";
+        return sf;
+    }
+    static const std::pair<const char*, const char*> styles[] = {
+        {"aggressor", "Агрессор"}, {"positional", "Позиционщик"}, {"tactician", "Тактик"}, {"club", "Универсал"}};
+    const auto& [id, name] = styles[rng() % std::size(styles)];
+    const BotProfile& s = *botById(id);
+    BotProfile r = strengthBot(elo);
+    r.id = s.id;
+    r.name = name;
+    r.style = s.style;
+    r.desc = s.desc;
+    r.color = s.color;
+    r.params = s.params;
+    return r;
 }
 
 std::vector<Move> bookMoves(const std::vector<Move>& gameMoves) {

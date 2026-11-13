@@ -19,9 +19,9 @@ struct Settings {
     std::string botId = "amateur";
     int colorChoice = 1;
     int tcIndex = 4;
-    bool ratedGames = true;
     bool coachMode = false;
     bool liveGrades = true;
+    bool checkUpdates = true;
     bool uiSounds = true;
     std::string soundPack = "marble";
     float volume = 0.7f;

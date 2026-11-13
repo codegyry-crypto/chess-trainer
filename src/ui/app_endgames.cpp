@@ -70,6 +70,7 @@ void App::finishEndgame(Verdict v, const std::string& msg) {
     if (v == Verdict::Won) {
         sound::play(sound::Id::GameStart);
         if (egDone_.insert(endgame().id).second && shotFile_.empty()) profile_.setValue("endgame:" + endgame().id, "1");
+        progress("endgame", endgame().id);
         return;
     }
     int worst = -1000000;

@@ -91,6 +91,7 @@ bool App::openReviewFromClipboard() {
 
 void App::saveMistakesAsPuzzles() {
     review_.mistakesSaved = true;
+    progress("review");
     if (review_.myColor < 0) return;
     int added = 0;
     for (size_t i = 1; i < review_.moves.size() && i < grades_.size(); ++i) {

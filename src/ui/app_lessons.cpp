@@ -160,7 +160,10 @@ void App::drawLessons() {
         puzzleState_ = PuzzleState::Play;
     }
     const bool solved = puzzleState_ == PuzzleState::Solved;
-    if (solved && last && lessonsDone_.insert(l.id).second && shotFile_.empty()) profile_.setValue("lesson:" + l.id, "1");
+    if (solved && last && lessonsDone_.insert(l.id).second) {
+        if (shotFile_.empty()) profile_.setValue("lesson:" + l.id, "1");
+        progress("lesson", l.id);
+    }
 
     const float availW = W - 3 * M - PanelL, availH = H - 2 * M - 56;
     const float boardSize = std::floor(std::min(availW, availH) / 8) * 8;

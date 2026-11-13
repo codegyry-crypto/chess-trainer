@@ -30,6 +30,8 @@ struct BotProfile {
 
 const std::vector<BotProfile>& bots();
 const BotProfile* botById(const std::string& id);
+BotProfile strengthBot(int elo);
+BotProfile pickOpponent(int target, bool calibrating, bool stockfish, std::mt19937& rng);
 
 struct BotMove {
     chess::Move move = chess::Move::none();

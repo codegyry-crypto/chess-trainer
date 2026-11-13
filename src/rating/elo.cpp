@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iterator>
 
 namespace rating {
 double expectedScore(int player, int opponent) {
@@ -25,6 +26,14 @@ int performanceRating(const std::vector<CalibrationGame>& games) {
     const double n = double(games.size());
     const int perf = int(std::lround(sumOpp / n + 400.0 * (wins - losses) / n));
     return std::clamp(perf, 100, 2800);
+}
+
+int calibrationTarget(const std::vector<CalibrationGame>& played) {
+    static const int steps[] = {400, 200, 100, 50};
+    if (played.empty()) return CalibrationStart;
+    const int step = steps[std::min(played.size(), std::size(steps)) - 1];
+    const CalibrationGame& g = played.back();
+    return std::clamp(g.opponent + int(std::lround(step * (2 * g.score - 1))), 400, 2600);
 }
 
 const std::vector<Level>& levels() {

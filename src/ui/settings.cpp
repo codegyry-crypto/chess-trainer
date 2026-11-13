@@ -76,9 +76,9 @@ std::vector<Field> fields(Settings& s) {
             {"soundSet", &s.soundPack},
             {"volume", &s.volume},
             {"vsBot", &s.vsBot},
-            {"ratedGames", &s.ratedGames},
             {"coachMode", &s.coachMode},
             {"liveGrades", &s.liveGrades},
+            {"checkUpdates", &s.checkUpdates},
             {"botId", &s.botId},
             {"colorChoice", &s.colorChoice},
             {"tcIndex", &s.tcIndex}};

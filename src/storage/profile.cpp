@@ -177,8 +177,48 @@ void Profile::srsResult(const std::string& key, bool solved, int day) {
     Stmt(db_, "UPDATE srs SET step = ?, due = ? WHERE key = ?").bind(1, step).bind(2, day + intervals[step]).bind(3, key).run();
 }
 
+Streak Profile::streak() const {
+    const std::string day = value("streak_day");
+    return {counter("streak"), counter("streak_best"), day.empty() ? -1 : std::atoi(day.c_str())};
+}
+
+void Profile::markActivity(int day) {
+    const Streak s = advanceStreak(streak(), day);
+    setValue("streak", std::to_string(s.current));
+    setValue("streak_best", std::to_string(s.best));
+    setValue("streak_day", std::to_string(s.lastDay));
+}
+
+std::vector<PlanItem> Profile::plan(int day) const {
+    if (value("plan_day") != std::to_string(day)) return {};
+    return decodePlan(value("plan"));
+}
+
+void Profile::setPlan(int day, const std::vector<PlanItem>& plan) {
+    setValue("plan_day", std::to_string(day));
+    setValue("plan", encodePlan(plan));
+}
+
+int Profile::counter(const std::string& key) const { return std::atoi(value(key).c_str()); }
+
+void Profile::bump(const std::string& key) { setValue(key, std::to_string(counter(key) + 1)); }
+
+bool Profile::unlock(const std::string& achievement, int day) {
+    if (!value("ach:" + achievement).empty()) return false;
+    setValue("ach:" + achievement, std::to_string(day));
+    return true;
+}
+
 bool Profile::calibrated() const { return ratedGames_ >= rating::CalibrationGames; }
 int Profile::calibrationLeft() const { return std::max(0, rating::CalibrationGames - ratedGames_); }
+
+std::vector<rating::CalibrationGame> Profile::calibrationGames() const {
+    std::vector<rating::CalibrationGame> cal;
+    Stmt q(db_, "SELECT opponent_rating, score FROM games WHERE rated = 1 ORDER BY id LIMIT ?");
+    q.bind(1, rating::CalibrationGames);
+    while (q.step()) cal.push_back({q.integer(0), q.real(1)});
+    return cal;
+}
 
 RatingChange Profile::recordGame(GameRecord g) {
     RatingChange ch;
@@ -188,9 +228,7 @@ RatingChange Profile::recordGame(GameRecord g) {
     if (g.rated) {
         ch.rated = true;
         if (!calibrated()) {
-            std::vector<rating::CalibrationGame> cal;
-            Stmt q(db_, "SELECT opponent_rating, score FROM games WHERE rated = 1 ORDER BY id");
-            while (q.step()) cal.push_back({q.integer(0), q.real(1)});
+            std::vector<rating::CalibrationGame> cal = calibrationGames();
             cal.push_back({g.opponentRating, g.score});
             rating_ = rating::performanceRating(cal);
             ch.calibrationPlayed = int(cal.size());

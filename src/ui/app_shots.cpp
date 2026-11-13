@@ -30,8 +30,14 @@ void App::setupShot(const std::string& screen) {
     settings_.vsBot = screen == "newgame" || screen == "botplay" || screen == "sfplay" || screen == "elo" ||
                       screen == "coach" || screen == "coachhint";
     newGameOpen_ = screen == "newgame";
+    if (screen == "rated") {
+        ratedOpen_ = true;
+        ratedPhase_ = 2;
+        findOpponent();
+    }
 
-    if (screen == "profile" || screen == "elo" || screen == "menu") {
+    const bool profileShot = screen == "profile" || screen == "profilegames" || screen == "achievements";
+    if (profileShot || screen == "elo" || screen == "menu" || screen == "plan") {
         const int opp[] = {1000, 1200, 1000, 700, 1000, 1000, 1200, 1200, 1000, 1400, 1200, 1200, 1400, 1200};
         const double res[] = {1, 0, 1, 1, 0.5, 1, 0, 1, 1, 0, 1, 1, 0.5, 1};
         for (int i = 0; i < 14; ++i) {
@@ -47,13 +53,25 @@ void App::setupShot(const std::string& screen) {
             g.date = "2026-11-" + std::to_string(10 + i / 5) + " 1" + std::to_string(i % 10) + ":00";
             profile_.recordGame(g);
         }
-        if (screen == "profile") screen_ = Screen::Profile;
+        const int day = storage::Profile::today();
+        for (int d = 3; d >= 0; --d) profile_.markActivity(day - d);
+        for (int i = 0; i < 37; ++i) profile_.bump("puzzles_solved");
+        profile_.srsAdd({"s1", "", "", "fork pin", "lichess"}, day);
+        profile_.srsAdd({"s2", "", "", "fork", "lichess"}, day);
+        profile_.srsAdd({"s3", "8/5k2/8/3R4/8/2K5/8/6r1 w - - 0 40", "", "mine", "mine"}, day);
+        auto& plan = todayPlan();
+        for (int i = 0; i < 4; ++i) storage::advancePlan(plan, "puzzles", plan[0].arg);
+        storage::advancePlan(plan, "lesson", plan[1].arg);
+        checkAchievements();
+        if (profileShot) screen_ = Screen::Profile;
+        profileTab_ = screen == "profilegames" ? 1 : screen == "achievements" ? 2 : 0;
+        if (screen == "plan") screen_ = Screen::Plan;
     }
     if (screen == "elo") {
-        settings_.botId = "positional";
-        settings_.colorChoice = 0;
-        settings_.ratedGames = true;
-        startGame(timeControls()[4]);
+        foundBot_ = *engine::botById("positional");
+        foundColor_ = chess::White;
+        settings_.tcIndex = 4;
+        startRated();
         playLine("e4 e5 Bc4 Nc6 Qh5 Nf6 Qxf7");
     }
     if (screen == "botplay" || screen == "sfplay") {
@@ -148,6 +166,7 @@ void App::setupShot(const std::string& screen) {
                                                         {"settings-about", SettingsTab::About}};
     for (const auto& [name, tab] : tabs)
         if (screen == name) screen_ = Screen::Settings, tab_ = tab;
+    if (screen == "update") updateTag_ = "v9.9.9", updateChecked_ = true;
 }
 
 }

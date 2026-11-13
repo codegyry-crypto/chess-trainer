@@ -1,9 +1,10 @@
 ﻿#define Root ".."
+#include Root + "\build\version.iss"
 
 [Setup]
 AppId={{6F2A8C1E-3B7D-4E55-9A1C-2D8E4F7B9C30}
 AppName=Шахматный тренер
-AppVersion=1.0
+AppVersion={#AppVer}
 AppPublisher=Шахматный тренер
 DefaultDirName={autopf}\Шахматный тренер
 DefaultGroupName=Шахматный тренер
@@ -18,6 +19,7 @@ SolidCompression=yes
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 WizardStyle=modern
+CloseApplications=force
 
 [Languages]
 Name: "ru"; MessagesFile: "compiler:Languages\Russian.isl"
@@ -36,3 +38,4 @@ Name: "{autodesktop}\Шахматный тренер"; Filename: "{app}\ChessTra
 
 [Run]
 Filename: "{app}\ChessTrainer.exe"; Description: "{cm:LaunchProgram,Шахматный тренер}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\ChessTrainer.exe"; Flags: nowait skipifnotsilent

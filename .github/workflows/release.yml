@@ -1,0 +1,54 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check version
+        run: |
+          $v = [regex]::Match((Get-Content CMakeLists.txt -Raw), 'project\(ChessTrainer VERSION ([0-9.]+)').Groups[1].Value
+          if ("v$v" -ne "${{ github.ref_name }}") { throw "Тег ${{ github.ref_name }} не совпадает с версией v$v в CMakeLists.txt" }
+
+      - name: Stockfish
+        run: |
+          foreach ($n in "avx2", "sse41-popcnt") {
+            Invoke-WebRequest "https://github.com/official-stockfish/Stockfish/releases/download/sf_17.1/stockfish-windows-x86-64-$n.zip" -OutFile "$env:RUNNER_TEMP\sf.zip"
+            Expand-Archive "$env:RUNNER_TEMP\sf.zip" "$env:RUNNER_TEMP\sf-$n"
+            Get-ChildItem "$env:RUNNER_TEMP\sf-$n" -Recurse -Filter "stockfish-windows-*.exe" | Copy-Item -Destination third_party/stockfish
+          }
+
+      - name: Build
+        run: |
+          cmake -S . -B build
+          cmake --build build --config Release
+
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Package
+        run: |
+          choco install innosetup -y --no-progress
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /Q installer\ChessTrainer.iss
+          $dir = "$env:RUNNER_TEMP\zip\Шахматный тренер"
+          New-Item -ItemType Directory $dir | Out-Null
+          Copy-Item build\Release\ChessTrainer.exe $dir
+          Copy-Item assets "$dir\assets" -Recurse
+          Copy-Item third_party\stockfish "$dir\stockfish" -Recurse
+          Compress-Archive "$env:RUNNER_TEMP\zip\*" dist\ChessTrainer.zip
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" dist/ChessTrainer-Setup.exe dist/ChessTrainer.zip --title "${{ github.ref_name }}" --generate-notes

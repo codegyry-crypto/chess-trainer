@@ -5,6 +5,7 @@
 namespace rating {
 constexpr int StartRating = 800;
 constexpr int CalibrationGames = 5;
+constexpr int CalibrationStart = 1200;
 
 double expectedScore(int player, int opponent);
 int kFactor(int ratedGamesPlayed);
@@ -15,6 +16,7 @@ struct CalibrationGame {
     double score;
 };
 int performanceRating(const std::vector<CalibrationGame>& games);
+int calibrationTarget(const std::vector<CalibrationGame>& played);
 
 struct Level {
     int number;
