@@ -270,6 +270,22 @@ void badge(Vector2 pos, const std::string& label, Color bg, Color fg, float size
     textCentered(label, r, size, fg, true);
 }
 
+void streakFlame(Vector2 topRight, int days, float size) {
+    const std::string n = std::to_string(days);
+    const float x = topRight.x - measure(n, size, true).x;
+    text(n, {x, topRight.y}, size, days ? theme().text : theme().sub, true);
+    auto drop = [](Vector2 tip, float h, Color c) {
+        const Vector2 o{tip.x, tip.y + h * 0.68f};
+        const float r = h * 0.32f;
+        DrawCircleV(o, r, c);
+        DrawTriangle(tip, {o.x - r, o.y}, {o.x + r, o.y}, c);
+    };
+    const float h = size * 1.25f;
+    const Vector2 tip{x - h * 0.5f, topRight.y + size * 0.55f - h * 0.5f};
+    drop(tip, h, days ? Color{255, 122, 26, 255} : mix(theme().sub, theme().bg, 0.4f));
+    if (days) drop({tip.x, tip.y + h * 0.38f}, h * 0.6f, Color{255, 210, 63, 255});
+}
+
 void toast(const std::string& message) {
     S().toastText = message;
     S().toastUntil = GetTime() + 2.8;

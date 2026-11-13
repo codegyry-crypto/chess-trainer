@@ -347,8 +347,7 @@ void App::drawMenu() {
                  {r.x + 20, r.y + 58}, 16, all ? t.good : t.sub);
             drawProgressBar({r.x + 20, r.y + 86, r.width - 40, 6}, plan.empty() ? 0 : float(done) / plan.size(),
                             all ? t.good : t.accent);
-            const std::string fire = "Серия: " + std::to_string(streak) + " дн.";
-            text(fire, {r.x + r.width - 20 - measure(fire, 17, true).x, r.y + 24}, 17, streak ? t.accent : t.sub, true);
+            streakFlame({r.x + r.width - 20, r.y + 22}, streak, 20);
         } else {
             text(items[i].desc, {r.x + 20, r.y + 58}, 16, t.sub);
         }

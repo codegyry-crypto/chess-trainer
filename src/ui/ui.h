@@ -48,6 +48,7 @@ bool chip(Rectangle r, const std::string& label, bool selected, bool enabled = t
 bool toggle(Rectangle r, const std::string& label, bool& value);
 bool slider(Rectangle r, float& value);
 void badge(Vector2 pos, const std::string& label, Color bg, Color fg, float size = 13);
+void streakFlame(Vector2 topRight, int days, float size);
 
 void toast(const std::string& message);
 void drawToast();

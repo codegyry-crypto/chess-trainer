@@ -124,8 +124,7 @@ void App::drawPlan() {
              " минут. План собран на сегодня, пункты отмечаются сами, когда ты их проходишь.",
          {left, y + 44}, 16, t.sub);
     const int streak = storage::liveStreak(profile_.streak(), storage::Profile::today());
-    const std::string sk = "Серия: " + std::to_string(streak) + " дн.";
-    text(sk, {left + w - measure(sk, 20, true).x, y + 6}, 20, streak ? t.accent : t.sub, true);
+    streakFlame({left + w, y + 4}, streak, 24);
 
     y += 90;
     const float rowH = std::min(88.0f, (H - y - M - 90) / std::max<float>(1, float(plan.size())) - 10);
