@@ -13,6 +13,7 @@
 ![raylib](https://img.shields.io/badge/raylib-5.5-black)
 ![Stockfish](https://img.shields.io/badge/Stockfish-17.1-6DB33F)
 ![CMake](https://img.shields.io/badge/CMake-3.25+-064F8C?logo=cmake&logoColor=white)
+![License](https://img.shields.io/badge/license-GPLv3-blue)
 
 [Скачать](#-установка) · [Возможности](#-возможности) · [Сборка](#-сборка-из-исходников) · [План](#-что-дальше)
 
@@ -135,3 +136,7 @@ tests/          тесты ядра, движка, рейтинга, анали�
 
 Часть ресурсов разрешена только для некоммерческого использования, поэтому программа бесплатная.
 Текст каждой лицензии лежит рядом с ресурсом (`LICENSE.txt`).
+
+## 📄 Лицензия
+
+Код проекта распространяется по [GNU GPL v3](LICENSE). Ресурсы в `assets/` и `third_party/` — по своим лицензиям из таблицы выше.
