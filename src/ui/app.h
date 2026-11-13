@@ -47,6 +47,8 @@ private:
     void nextPuzzle();
     void finishPuzzle(bool solved);
     void puzzleMove(chess::Move m);
+    bool puzzleBoard(Rectangle boardRect);
+    void showPuzzleSolution();
     void drawPuzzles();
     void startPuzzleImport();
     void pollPuzzleImport();
@@ -237,7 +239,7 @@ private:
     bool updateChecked_ = false;
     double puzzleTimer_ = 0, stormEnd_ = 0;
     int puzzleHint_ = 0, puzzleDelta_ = 0, stormScore_ = 0, stormErrors_ = 0;
-    bool puzzleFailed_ = false;
+    bool puzzleFailed_ = false, menuPuzzle_ = false;
 
     std::vector<training::Section> lessons_;
     std::unordered_set<std::string> lessonsDone_;

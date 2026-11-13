@@ -133,6 +133,7 @@ void App::setupShot(const std::string& screen) {
         openPuzzles(PuzzleMode::Rated);
         if (screen == "puzzleimport") startPuzzleImport();
     }
+    if (screen == "menu") puzzles_ = puzzlesLoading_.get();
     if (screen == "puzzletheme") openPuzzles(PuzzleMode::Theme);
     if (screen == "puzzlestorm" || screen == "stormauto") openPuzzles(PuzzleMode::Storm);
     autoPlay_ = autoPlay_ || screen == "stormauto";

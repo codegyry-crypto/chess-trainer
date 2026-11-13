@@ -172,18 +172,7 @@ void App::puzzleMove(Move m) {
     puzzleTimer_ = GetTime() + 0.4;
 }
 
-void App::drawPuzzles() {
-    const Theme& t = theme();
-    const float W = screenW(), H = screenH();
-
-    if (pmode_ == PuzzleMode::Storm && (stormEnd_ > 0 && GetTime() >= stormEnd_ || stormErrors_ >= 3)) {
-        if (puzzleState_ != PuzzleState::Empty) {
-            profile_.setStormBest(stormScore_);
-            sound::play(sound::Id::Checkmate);
-        }
-        puzzleState_ = PuzzleState::Empty;
-        stormEnd_ = 0;
-    }
+bool App::puzzleBoard(Rectangle boardRect) {
     if ((puzzleState_ == PuzzleState::Setup || puzzleState_ == PuzzleState::Reply) && GetTime() >= puzzleTimer_) {
         const chess::Position before = run_.position();
         const Move m = puzzleState_ == PuzzleState::Setup ? run_.setupMove() : run_.expected();
@@ -194,9 +183,6 @@ void App::drawPuzzles() {
         puzzleState_ = PuzzleState::Play;
     }
 
-    const float availW = W - 3 * M - PanelP, availH = H - 2 * M - 56;
-    const float boardSize = std::floor(std::min(availW, availH) / 8) * 8;
-    const Rectangle boardRect{M + std::floor((availW - boardSize) / 2), M + 56, boardSize, boardSize};
     BoardOptions opt;
     opt.flipped = run_.playerColor() == chess::Black;
     opt.coords = settings_.showCoords;
@@ -211,9 +197,40 @@ void App::drawPuzzles() {
     }
     board_.setHintArrows(std::move(arrows));
     if (puzzleState_ != PuzzleState::Empty) {
-        const Move m = board_.update(boardRect, run_.position(), active, pieces_.get(settings_.pieceSet), opt);
+        const Move m = board_.update(boardRect, run_.position(), active && inputEnabled(), pieces_.get(settings_.pieceSet), opt);
         if (!m.isNone()) puzzleMove(m);
     }
+    return active;
+}
+
+void App::showPuzzleSolution() {
+    if (!puzzleFailed_) finishPuzzle(false);
+    puzzleFailed_ = true;
+    puzzleHint_ = 0;
+    board_.reset();
+    const chess::Position before = run_.position();
+    const Move e = run_.expected();
+    if (run_.play(e) == PuzzleRun::Result::Solved) puzzleState_ = PuzzleState::Solved;
+    else puzzleState_ = PuzzleState::Reply, puzzleTimer_ = GetTime() + 0.6;
+    board_.animate(before, e);
+}
+
+void App::drawPuzzles() {
+    const Theme& t = theme();
+    const float W = screenW(), H = screenH();
+
+    if (pmode_ == PuzzleMode::Storm && (stormEnd_ > 0 && GetTime() >= stormEnd_ || stormErrors_ >= 3)) {
+        if (puzzleState_ != PuzzleState::Empty) {
+            profile_.setStormBest(stormScore_);
+            sound::play(sound::Id::Checkmate);
+        }
+        puzzleState_ = PuzzleState::Empty;
+        stormEnd_ = 0;
+    }
+    const float availW = W - 3 * M - PanelP, availH = H - 2 * M - 56;
+    const float boardSize = std::floor(std::min(availW, availH) / 8) * 8;
+    const Rectangle boardRect{M + std::floor((availW - boardSize) / 2), M + 56, boardSize, boardSize};
+    const bool active = puzzleBoard(boardRect);
     const bool white = run_.playerColor() == chess::White;
     text(puzzleState_ == PuzzleState::Empty ? "" : (white ? "Ход белых — найди лучший ход" : "Ход чёрных — найди лучший ход"),
          {boardRect.x, M + 14}, 22, t.text, true);
@@ -319,17 +336,7 @@ void App::drawPuzzles() {
         puzzleFailed_ = true;
         ++puzzleHint_;
     }
-    if (button({px + bw + 8, py, bw, 46}, "Решение", Style::Secondary, active, 15)) {
-        if (!puzzleFailed_) finishPuzzle(false);
-        puzzleFailed_ = true;
-        puzzleHint_ = 0;
-        board_.reset();
-        const chess::Position before = run_.position();
-        const Move e = run_.expected();
-        if (run_.play(e) == PuzzleRun::Result::Solved) puzzleState_ = PuzzleState::Solved;
-        else puzzleState_ = PuzzleState::Reply, puzzleTimer_ = GetTime() + 0.6;
-        board_.animate(before, e);
-    }
+    if (button({px + bw + 8, py, bw, 46}, "Решение", Style::Secondary, active, 15)) showPuzzleSolution();
     if (button({px + 2 * (bw + 8), py, bw, 46}, "Дальше", Style::Primary, true, 15)) nextPuzzle();
     py += 58;
     if (button({px, py, PanelP, 42}, importLabel(), Style::Ghost, !importFuture_.valid(), 15)) startPuzzleImport();

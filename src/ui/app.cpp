@@ -286,6 +286,7 @@ void App::frame() {
     beginFrame();
 
     setInputEnabled(!newGameOpen_ && !ratedOpen_);
+    if (screen_ != Screen::Menu) menuPuzzle_ = false;
     switch (screen_) {
     case Screen::Menu: drawMenu(); break;
     case Screen::Game: drawGame(); break;
@@ -377,14 +378,42 @@ void App::drawMenu() {
 
     const float rx = left + colW + 56;
     const float rw = W - rx - 56;
-    const float boardSize = std::floor(std::min(rw, H - top - 56 - 110) / 8) * 8;
+    const float boardSize = std::floor(std::min(rw, H - top - 56 - 110 - 56) / 8) * 8;
     if (boardSize >= 200) {
-        static const Position demo = previewPosition();
+        if (!menuPuzzle_ && puzzles_.empty() && puzzlesLoading_.valid() &&
+            puzzlesLoading_.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
+            puzzles_ = puzzlesLoading_.get();
+        if (!menuPuzzle_ && !puzzles_.empty()) {
+            pmode_ = PuzzleMode::Rated;
+            nextPuzzle();
+            menuPuzzle_ = true;
+        }
         const Rectangle br{rx + (rw - boardSize) / 2, top, boardSize, boardSize};
         roundRect({br.x - 8, br.y - 8, br.width + 16, br.height + 16}, 12, t.panel);
-        drawMiniBoard(br, demo, pieces_.get(settings_.pieceSet), t);
+        const bool live = menuPuzzle_ && puzzleState_ != PuzzleState::Empty;
+        if (live) {
+            puzzleBoard(br);
+            const float cy = br.y + boardSize + 20;
+            std::string label = std::string(run_.playerColor() == chess::White ? "Задача: ход белых" : "Задача: ход чёрных") +
+                                " · " + std::to_string(run_.puzzle().rating);
+            ::Color lc = t.text;
+            if (puzzleState_ == PuzzleState::Solved) label = puzzleFailed_ ? "Решение показано" : "Решено!", lc = t.good;
+            if (puzzleState_ == PuzzleState::Wrong) label = "Не тот ход — попробуй ещё", lc = t.danger;
+            if (puzzleState_ == PuzzleState::Reply) label = "Верно! Продолжай", lc = t.good;
+            if (puzzleDelta_) label += puzzleDelta_ > 0 ? "  +" + std::to_string(puzzleDelta_) : "  " + std::to_string(puzzleDelta_);
+            text(label, {br.x, cy + 10}, 18, lc, true);
+            const Rectangle nb{br.x + boardSize - 130, cy, 130, 40};
+            if (puzzleState_ == PuzzleState::Solved) {
+                if (button(nb, "Следующая", Style::Primary, true, 15)) nextPuzzle();
+            } else if (button(nb, "Решение", Style::Ghost, puzzleState_ == PuzzleState::Play || puzzleState_ == PuzzleState::Wrong, 15)) {
+                showPuzzleSolution();
+            }
+        } else {
+            static const Position demo = previewPosition();
+            drawMiniBoard(br, demo, pieces_.get(settings_.pieceSet), t);
+        }
 
-        const Rectangle pr{br.x - 8, br.y + boardSize + 22, boardSize + 16, 84};
+        const Rectangle pr{br.x - 8, br.y + boardSize + 76, boardSize + 16, 84};
         const bool hot = hovered(pr);
         roundRect(pr, 12, hot ? mix(t.panel, t.text, 0.05f) : t.panel);
         if (hot) setHandCursor();
