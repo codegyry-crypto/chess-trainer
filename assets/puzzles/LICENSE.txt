@@ -1,0 +1,5 @@
+Задачи: Lichess puzzle database (выборка 155530 задач)
+Автор: Lichess (lichess.org) и его игроки
+Лицензия: CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/)
+Источник: https://database.lichess.org/#puzzles
+Формат строки: id,FEN,ходы UCI (первый — ход соперника),рейтинг,темы

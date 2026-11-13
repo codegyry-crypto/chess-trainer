@@ -1,0 +1,5 @@
+Набор фигур: fantasy
+Автор: Maurizio Monge
+Лицензия: MIT (https://github.com/maurimo/chess-art/blob/main/LICENSE)
+Источник: https://github.com/lichess-org/lila/tree/master/public/piece/fantasy
+(список авторов и лицензий: https://github.com/lichess-org/lila/blob/master/COPYING.md)

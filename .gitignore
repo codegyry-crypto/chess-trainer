@@ -1,0 +1,8 @@
+build/
+out/
+.vs/
+*.user
+dist/
+sound_previews/
+third_party/stockfish/*.exe
+/screenshot.png

@@ -1,0 +1,5 @@
+Звуки: nes (Lichess)
+Автор: Enigmahack
+Лицензия: AGPLv3+ (https://www.gnu.org/licenses/agpl-3.0.txt)
+Источник: https://github.com/lichess-org/lila/tree/master/public/sound/nes
+Звук ошибки (Error.ogg) — Kenney (kenney.nl), CC0.

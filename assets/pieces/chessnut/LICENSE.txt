@@ -1,0 +1,5 @@
+Набор фигур: chessnut
+Автор: Alexis Luengas
+Лицензия: Apache 2.0 (https://github.com/LexLuengas/chessnut-pieces/blob/master/LICENSE.txt)
+Источник: https://github.com/lichess-org/lila/tree/master/public/piece/chessnut
+(список авторов и лицензий: https://github.com/lichess-org/lila/blob/master/COPYING.md)

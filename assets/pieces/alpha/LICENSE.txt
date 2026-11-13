@@ -1,0 +1,5 @@
+Набор фигур: alpha
+Автор: Eric Bentzen
+Лицензия: Free for personal non commercial use (http://www.enpassant.dk/chess/downl/alpha.zip)
+Источник: https://github.com/lichess-org/lila/tree/master/public/piece/alpha
+(список авторов и лицензий: https://github.com/lichess-org/lila/blob/master/COPYING.md)

@@ -1,0 +1,5 @@
+Набор фигур: staunty
+Автор: sadsnake1
+Лицензия: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
+Источник: https://github.com/lichess-org/lila/tree/master/public/piece/staunty
+(список авторов и лицензий: https://github.com/lichess-org/lila/blob/master/COPYING.md)

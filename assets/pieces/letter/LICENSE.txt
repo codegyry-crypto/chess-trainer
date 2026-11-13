@@ -1,0 +1,5 @@
+Набор фигур: letter
+Автор: usolando
+Лицензия: AGPLv3+ (https://www.gnu.org/licenses/agpl-3.0.txt)
+Источник: https://github.com/lichess-org/lila/tree/master/public/piece/letter
+(список авторов и лицензий: https://github.com/lichess-org/lila/blob/master/COPYING.md)

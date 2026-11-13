@@ -1,0 +1,5 @@
+Набор фигур: california
+Автор: Jerry S.
+Лицензия: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
+Источник: https://github.com/lichess-org/lila/tree/master/public/piece/california
+(список авторов и лицензий: https://github.com/lichess-org/lila/blob/master/COPYING.md)

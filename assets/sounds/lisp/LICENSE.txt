@@ -1,0 +1,5 @@
+Звуки: lisp (Lichess)
+Автор: EdinburghCollective
+Лицензия: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
+Источник: https://github.com/lichess-org/lila/tree/master/public/sound/lisp
+Звук ошибки (Error.ogg) — Kenney (kenney.nl), CC0.

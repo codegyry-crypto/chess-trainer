@@ -1,0 +1,3 @@
+Звуки интерфейса: щелчок «Click 02» и его варианты (смена высоты)
+Автор: cabled_mess, «Minimal UI Sounds», https://freesound.org/people/cabled_mess/packs/20870/
+Лицензия: CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/)

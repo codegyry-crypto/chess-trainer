@@ -1,0 +1,5 @@
+Набор фигур: merida
+Автор: Armando Hernandez Marroquin
+Лицензия: GPLv2+ (https://www.gnu.org/licenses/gpl-2.0.txt)
+Источник: https://github.com/lichess-org/lila/tree/master/public/piece/merida
+(список авторов и лицензий: https://github.com/lichess-org/lila/blob/master/COPYING.md)
