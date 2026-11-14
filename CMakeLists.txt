@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(ChessTrainer VERSION 1.2.2 LANGUAGES C CXX)
+project(ChessTrainer VERSION 1.3.1 LANGUAGES C CXX)
 file(WRITE ${CMAKE_BINARY_DIR}/version.iss "#define AppVer \"${PROJECT_VERSION}\"")
 
 set(CMAKE_CXX_STANDARD 20)
