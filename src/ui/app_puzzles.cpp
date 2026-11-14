@@ -1,6 +1,7 @@
 #include "ui/app.h"
 
 #include "core/notation.h"
+#include "ui/fx.h"
 #include "ui/sound.h"
 #include "ui/ui.h"
 
@@ -146,6 +147,7 @@ void App::puzzleMove(Move m) {
     if (r == PuzzleRun::Result::Wrong) {
         sound::play(sound::Id::Illegal);
         board_.reset();
+        puzzleStreak_ = 0;
         if (pmode_ == PuzzleMode::Storm) {
             ++stormErrors_;
             nextPuzzle();
@@ -158,7 +160,13 @@ void App::puzzleMove(Move m) {
     }
     sound::play(m.isCapture() ? sound::Id::Capture : sound::Id::Move);
     if (r == PuzzleRun::Result::Solved) {
-        sound::play(sound::Id::GameStart);
+        puzzleStreak_ = puzzleFailed_ ? 0 : puzzleStreak_ + 1;
+        const Rectangle sq = board_.squareRect(m.to);
+        const Vector2 at{sq.x + sq.width / 2, sq.y};
+        if (puzzleStreak_ % 5 == 0 && puzzleStreak_)
+            fx::celebrate(fx::Kind::Streak, at, "Серия: " + std::to_string(puzzleStreak_) + " подряд!");
+        else
+            fx::celebrate(fx::Kind::Solved, at);
         if (pmode_ == PuzzleMode::Storm) {
             ++stormScore_;
             nextPuzzle();

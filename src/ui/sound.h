@@ -5,7 +5,7 @@
 
 namespace sound {
 enum class Id {
-    Move, Capture, Check, GameStart, Checkmate, Draw, LowTime, Illegal, Brilliant,
+    Move, Capture, Check, GameStart, Checkmate, Draw, LowTime, Illegal, Brilliant, Great, Solved, Streak, Achievement,
     Click, Toggle,
 };
 

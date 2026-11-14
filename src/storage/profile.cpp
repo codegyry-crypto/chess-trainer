@@ -217,6 +217,10 @@ int Profile::counter(const std::string& key) const { return std::atoi(value(key)
 
 void Profile::bump(const std::string& key) { setValue(key, std::to_string(counter(key) + 1)); }
 
+void Profile::setBest(const std::string& key, int value) {
+    if (value > counter(key)) setValue(key, std::to_string(value));
+}
+
 bool Profile::unlock(const std::string& achievement, int day) {
     if (!value("ach:" + achievement).empty()) return false;
     setValue("ach:" + achievement, std::to_string(day));

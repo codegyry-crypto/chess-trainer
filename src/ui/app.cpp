@@ -2,6 +2,7 @@
 
 #include "core/notation.h"
 #include "core/pgn.h"
+#include "ui/fx.h"
 #include "ui/sound.h"
 #include "rating/elo.h"
 #include "ui/titlebar.h"
@@ -248,6 +249,7 @@ void App::applySettings() {
     sound::setUiEnabled(settings_.uiSounds);
     sound::setPack(settings_.soundPack);
     sound::setVolume(settings_.volume);
+    fx::setEnabled(settings_.animate);
     const Theme& t = theme();
     auto toRgb = [](::Color c) { return (unsigned(c.r) << 16) | (unsigned(c.g) << 8) | c.b; };
     setTitleBarColors(GetWindowHandle(), toRgb(t.bg), toRgb(t.sub), toRgb(t.bg), t.bg.r + t.bg.g + t.bg.b < 384);
@@ -301,12 +303,14 @@ void App::frame() {
     case Screen::Endgames: drawEndgames(); break;
     case Screen::Plan: drawPlan(); break;
     case Screen::Openings: drawOpenings(); break;
+    case Screen::Vision: drawVision(); break;
     }
     setInputEnabled(true);
     if (newGameOpen_) drawNewGameModal();
     if (ratedOpen_) drawRatedModal();
 
     drawToast();
+    fx::draw();
     endFrame();
     endScaled();
     EndDrawing();
@@ -330,25 +334,25 @@ void App::drawMenu() {
         {"Играть", "Тренировочная партия без рейтинга", true},  {"Уроки", "Курс от основ до эндшпиля", true},
         {"Задачи", "Тактика и твои ошибки", true},     {"Эндшпили", "Доиграй позицию против Stockfish", true},
         {"Анализ", "Разбор партий Stockfish'ом", true},     {"Дебюты", "Репертуар с повторением", true},
-        {"План дня", "Тренировка на сегодня", true},
+        {"Видение доски", "Клетки и ходы фигур на время", true}, {"План дня", "Тренировка на сегодня", true},
     };
     const float gap = 14, cardW = (colW - gap) / 2, cardH = 104;
     float y = top + 120;
-    for (int i = 0; i < 7; ++i) {
-        const Rectangle r{left + (i % 2) * (cardW + gap), y + (i / 2) * (cardH + gap), i == 6 ? colW : cardW, cardH};
+    for (int i = 0; i < 8; ++i) {
+        const Rectangle r{left + (i % 2) * (cardW + gap), y + (i / 2) * (cardH + gap), cardW, cardH};
         const bool hot = items[i].ready && hovered(r);
         roundRect(r, 12, hot ? mix(t.panel, t.text, 0.06f) : t.panel);
         if (i == 0) roundRectLines(r, 12, 2, t.accent);
         text(items[i].title, {r.x + 20, r.y + 22}, 23, items[i].ready ? t.text : t.sub, true);
-        if (i == 6) {
+        if (i == 7) {
             const auto& plan = todayPlan();
             int done = 0;
             for (const auto& it : plan) done += it.complete();
             const int streak = storage::liveStreak(profile_.streak(), storage::Profile::today());
             const bool all = storage::planComplete(plan);
-            text(all ? "Всё выполнено — так держать!"
-                     : "Выполнено " + std::to_string(done) + " из " + std::to_string(plan.size()) + " · около " +
-                           std::to_string(storage::planMinutes(plan)) + " минут",
+            text(all ? "Всё выполнено!"
+                     : "Выполнено " + std::to_string(done) + " из " + std::to_string(plan.size()) + " · ~" +
+                           std::to_string(storage::planMinutes(plan)) + " мин",
                  {r.x + 20, r.y + 58}, 16, all ? t.good : t.sub);
             drawProgressBar({r.x + 20, r.y + 86, r.width - 40, 6}, plan.empty() ? 0 : float(done) / plan.size(),
                             all ? t.good : t.accent);
@@ -373,7 +377,8 @@ void App::drawMenu() {
             opRep_ = -1;
             screen_ = Screen::Openings;
         }
-        if (items[i].ready && clicked(r) && i == 6) screen_ = Screen::Plan;
+        if (items[i].ready && clicked(r) && i == 6) openVision(training::VisionMode::Square);
+        if (items[i].ready && clicked(r) && i == 7) screen_ = Screen::Plan;
     }
     y += 4 * (cardH + gap) + 10;
     if (button({left, y, 240, 46}, "Рейтинговая игра", Style::Primary, true, 18)) openRated();
@@ -463,6 +468,7 @@ void App::drawNewGameModal() {
     if (chip({x0, y, 200, 44}, "Бот", vsBot)) settings_.vsBot = true;
     if (chip({x0 + 210, y, 200, 44}, "Друг рядом", !vsBot)) settings_.vsBot = false;
     toggle({x0 + 430, y, 210, 44}, "Тренер", settings_.coachMode);
+    if (vsBot) toggle({x0 + 650, y, 202, 44}, "Вслепую", blindPick_);
     y += 60;
 
     if (vsBot) {
@@ -542,6 +548,8 @@ void App::startGame(const TimeControl& tc, const std::string& fen, const engine:
     searcher_.clear();
     lastBotScore_ = 0;
     coachOn_ = !practiceBot && settings_.coachMode;
+    blind_ = bot_ && !practiceBot && !rated && blindPick_;
+    peekUntil_ = 0;
     rated_ = rated;
     pendingMove_ = Move::none();
     recorded_ = false;
@@ -803,6 +811,9 @@ void App::drawGame() {
     opt.legalMoves = settings_.showLegalMoves;
     opt.lastMove = settings_.highlightLastMove;
     opt.animate = settings_.animate;
+    const bool blindNow = blind_ && !session_.over() && GetTime() >= peekUntil_;
+    opt.hidePieces = blindNow;
+    opt.legalMoves = opt.legalMoves && !blindNow;
 
     const bool overlay = session_.over() && !gameOverDismissed_;
     PieceSet& set = pieces_.get(settings_.pieceSet);
@@ -882,7 +893,12 @@ void App::drawGame() {
     if (button(cell(4), "Разбор партии", Style::Secondary, canReview))
         openReview(session_.toGame(), bot_ ? (humanColor_ == chess::White ? 0 : 1) : -1, Screen::Game);
     if (button(cell(5), "Новая партия")) newGameOpen_ = true;
-    if (button(cell(6), "Сохранить PGN", Style::Ghost, !session_.moves().empty())) savePGN();
+    if (blind_ && !session_.over()) {
+        if (button(cell(6), "Показать доску", Style::Secondary, blindNow) || (blindNow && IsKeyPressed(KEY_SPACE)))
+            peekUntil_ = GetTime() + 2.5;
+    } else if (button(cell(6), "Сохранить PGN", Style::Ghost, !session_.moves().empty())) {
+        savePGN();
+    }
     if (button(cell(7), "В меню", Style::Ghost)) screen_ = Screen::Menu;
 
     animateNavigation();

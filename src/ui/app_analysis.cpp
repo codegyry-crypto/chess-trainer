@@ -2,6 +2,7 @@
 
 #include "core/notation.h"
 #include "core/pgn.h"
+#include "ui/fx.h"
 #include "ui/grades.h"
 #include "ui/sound.h"
 #include "ui/ui.h"
@@ -408,8 +409,11 @@ void App::drawAnalysis() {
         if (reviewPly_ > 0 &&
             drawSquareGrade(board_.squareRect(review_.moves[reviewPly_ - 1].to), reviewPly_ - 1, shownGrade,
                             reviewAnim_) &&
-            shownGrade == Grade::Brilliant)
-            sound::play(sound::Id::Brilliant);
+            (shownGrade == Grade::Brilliant || shownGrade == Grade::Great)) {
+            const Rectangle sq = board_.squareRect(review_.moves[reviewPly_ - 1].to);
+            fx::celebrate(shownGrade == Grade::Brilliant ? fx::Kind::Brilliant : fx::Kind::Great,
+                          {sq.x + sq.width / 2, sq.y}, shownGrade == Grade::Brilliant ? "Бриллиантовый ход!" : "Отличный ход!");
+        }
         shownEval = evals_[reviewPly_];
         if (settings_.animate && reviewPly_ == reviewShownPly_ + 1)
             board_.animate(reviewPosition(reviewShownPly_), review_.moves[reviewShownPly_]);

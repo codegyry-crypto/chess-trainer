@@ -1,5 +1,6 @@
 #include "ui/app.h"
 
+#include "ui/fx.h"
 #include "ui/ui.h"
 
 #include <raylib.h>
@@ -79,7 +80,10 @@ void App::checkAchievements() {
     for (const auto& id : storage::earnedAchievements(s))
         if (profile_.unlock(id, day))
             for (const auto& a : storage::achievements())
-                if (id == a.id) toast(std::string("Новое достижение: «") + a.title + "»");
+                if (id == a.id) {
+                    toast(std::string("Новое достижение: «") + a.title + "»");
+                    fx::celebrate(fx::Kind::Achievement, {screenW() / 2, 150}, a.title);
+                }
 }
 
 void App::openLastReview(Screen returnTo) {

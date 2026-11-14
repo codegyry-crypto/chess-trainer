@@ -1,6 +1,8 @@
 #include "ui/app.h"
 
 #include "core/notation.h"
+#include "ui/fx.h"
+#include "ui/ui.h"
 
 #include <algorithm>
 #include <sstream>
@@ -193,6 +195,38 @@ void App::setupShot(const std::string& screen) {
     for (const auto& [name, tab] : tabs)
         if (screen == name) screen_ = Screen::Settings, tab_ = tab;
     if (screen == "update") updateTag_ = "v9.9.9", updateChecked_ = true;
+    if (screen.starts_with("vision")) {
+        const bool square = screen == "vision" || screen == "visionwrong";
+        openVision(square ? training::VisionMode::Square : training::VisionMode::Knight);
+        if (screen != "visionstart") visEnd_ = GetTime() + 21.4;
+        const auto sq = [](const char* s) { return chess::parseSquare(s); };
+        if (square) vis_.task = {training::VisionMode::Square, sq("f6"), 1ull << sq("f6")};
+        else vis_.task = {training::VisionMode::Knight, sq("b1"), training::visionReach(training::VisionMode::Knight, sq("b1"))};
+        vis_.score = 7, vis_.errors = 1;
+        if (screen == "visionwrong") vis_.click(sq("f5")), visWrongSq_ = sq("f5"), visPause_ = 1e9;
+        if (screen == "visionknight") vis_.click(sq("a3"));
+        if (screen == "visionend") visEnd_ = -1;
+    }
+    if (screen == "blind" || screen == "blindpeek") {
+        settings_.vsBot = true;
+        settings_.botId = "amateur";
+        settings_.colorChoice = 0;
+        blindPick_ = true;
+        startGame(timeControls()[4]);
+        playLine("e4 e5 Nf3 Nc6 Bc4 Bc5");
+        if (screen == "blindpeek") peekUntil_ = 1e9;
+    }
+    if (screen == "blindnew") settings_.vsBot = newGameOpen_ = blindPick_ = true;
+    if (screen == "fxpuzzle" || screen == "fxstreak") {
+        openPuzzles(PuzzleMode::Rated);
+        if (screen == "fxpuzzle") fx::celebrate(fx::Kind::Solved, {420, 330});
+        else fx::celebrate(fx::Kind::Streak, {420, 330}, "Серия: 5 подряд!");
+    }
+    if (screen == "fxbrilliant") {
+        setupShot("analysis");
+        fx::celebrate(fx::Kind::Brilliant, {screenW() / 2 - 200, 300}, "Бриллиантовый ход!");
+    }
+    if (screen == "fxachievement") fx::celebrate(fx::Kind::Achievement, {screenW() / 2, 150}, "Первая победа");
 }
 
 }

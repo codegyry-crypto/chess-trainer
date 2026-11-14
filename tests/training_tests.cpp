@@ -6,9 +6,11 @@
 #include "training/openings.h"
 #include "training/puzzles.h"
 #include "training/update.h"
+#include "training/vision.h"
 
 #include <zstd.h>
 
+#include <bit>
 #include <cstdio>
 #include <fstream>
 #include <filesystem>
@@ -296,7 +298,54 @@ static void testOpenings() {
     fs::remove(db, ec);
 }
 
+static void testVision() {
+    namespace fs = std::filesystem;
+    auto sq = [](const char* n) { return parseSquare(n); };
+    auto bit = [&](const char* n) { return 1ull << sq(n); };
+    CHECK(visionReach(VisionMode::Knight, sq("b1")) == (bit("a3") | bit("c3") | bit("d2")));
+    CHECK(std::popcount(visionReach(VisionMode::Knight, sq("e4"))) == 8);
+    CHECK(std::popcount(visionReach(VisionMode::Knight, sq("h8"))) == 2);
+    CHECK(visionReach(VisionMode::Bishop, sq("a1")) == (bit("b2") | bit("c3") | bit("d4") | bit("e5") | bit("f6") | bit("g7") | bit("h8")));
+    CHECK(std::popcount(visionReach(VisionMode::Bishop, sq("d4"))) == 13);
+    CHECK(!(visionReach(VisionMode::Bishop, sq("c1")) & bit("c1")));
+    CHECK(visionReach(VisionMode::Square, sq("f6")) == bit("f6"));
+    std::mt19937 rng(1);
+    for (int i = 0; i < 200; ++i) {
+        const VisionTask t = visionTask(VisionMode::Knight, rng, 10);
+        CHECK(t.square != 10 && t.targets == visionReach(VisionMode::Knight, t.square));
+    }
+    VisionRound round;
+    round.start(VisionMode::Knight, rng);
+    round.task = {VisionMode::Knight, sq("b1"), visionReach(VisionMode::Knight, sq("b1"))};
+    CHECK(round.click(sq("a3")) == VisionRound::Click::Hit);
+    CHECK(round.click(sq("a3")) == VisionRound::Click::Ignored);
+    CHECK(round.click(sq("c3")) == VisionRound::Click::Hit);
+    CHECK(round.click(sq("d2")) == VisionRound::Click::Done);
+    CHECK(round.score == 1 && round.click(sq("e4")) == VisionRound::Click::Ignored);
+    round.next(rng);
+    CHECK(round.task.square != sq("b1") && round.marked == 0 && !round.finished);
+    round.task = {VisionMode::Square, sq("f6"), bit("f6")};
+    CHECK(round.click(sq("f5")) == VisionRound::Click::Wrong);
+    CHECK(round.errors == 1 && round.score == 1 && round.finished);
+    round.next(rng);
+    round.task = {VisionMode::Square, sq("f6"), bit("f6")};
+    CHECK(round.click(sq("f6")) == VisionRound::Click::Done && round.score == 2);
+    {
+        const fs::path db = fs::temp_directory_path() / "chess_vision_test.db";
+        std::error_code ec;
+        fs::remove(db, ec);
+        storage::Profile prof;
+        CHECK(prof.open(db));
+        prof.setBest("vision_best_0", 7);
+        prof.setBest("vision_best_0", 3);
+        CHECK(prof.counter("vision_best_0") == 7);
+    }
+    std::error_code ec;
+    fs::remove(fs::temp_directory_path() / "chess_vision_test.db", ec);
+}
+
 int main() {
+    testVision();
     testOpenings();
     testUpdate();
     testEndgames();

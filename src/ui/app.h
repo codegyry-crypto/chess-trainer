@@ -10,6 +10,7 @@
 #include "training/lessons.h"
 #include "training/openings.h"
 #include "training/puzzles.h"
+#include "training/vision.h"
 #include "ui/board_view.h"
 #include "ui/game_session.h"
 #include "ui/grades.h"
@@ -34,7 +35,7 @@ public:
     int run(int argc, char** argv);
 
 private:
-    enum class Screen { Menu, Game, Settings, Profile, Analysis, Puzzles, Lessons, Endgames, Plan, Openings };
+    enum class Screen { Menu, Game, Settings, Profile, Analysis, Puzzles, Lessons, Endgames, Plan, Openings, Vision };
     enum class PuzzleState { Empty, Setup, Play, Reply, Solved, Wrong };
     enum class SettingsTab { Look, Pieces, Game, Sound, About };
 
@@ -116,6 +117,8 @@ private:
     void drawOpeningDrill(Rectangle boardRect, float px);
     void drawOpeningAdd(Rectangle boardRect, float px);
     void drawOpenings();
+    void openVision(training::VisionMode mode);
+    void drawVision();
 
     void drawAnalysis();
     void drawEvalBar(Rectangle r, const analysis::Eval& e, bool flipped);
@@ -318,6 +321,14 @@ private:
     std::future<engine::Result> hintFuture_;
     std::string warning_;
     std::mt19937 rng_{std::random_device{}()};
+
+    training::VisionRound vis_;
+    double visEnd_ = 0, visPause_ = 0;
+    int visWrongSq_ = -1;
+    bool visBlack_ = false;
+    bool blind_ = false, blindPick_ = false;
+    double peekUntil_ = 0;
+    int puzzleStreak_ = 0;
 };
 
 }

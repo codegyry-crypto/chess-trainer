@@ -13,6 +13,7 @@ struct BoardOptions {
     bool legalMoves = true;
     bool lastMove = true;
     bool animate = true;
+    bool hidePieces = false;
     Color lastMoveTint{};
 };
 

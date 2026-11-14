@@ -103,6 +103,7 @@ public:
     void setPlan(int day, const std::vector<PlanItem>& plan);
     int counter(const std::string& key) const;
     void bump(const std::string& key);
+    void setBest(const std::string& key, int value);
     bool unlock(const std::string& achievement, int day);
 
 private:

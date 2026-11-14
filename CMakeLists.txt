@@ -78,6 +78,7 @@ add_library(chess_training STATIC
     src/training/lessons.cpp
     src/training/endgames.cpp
     src/training/openings.cpp
+    src/training/vision.cpp
 )
 target_link_libraries(chess_training PUBLIC chess_core zstd winhttp shell32)
 target_compile_options(chess_training PRIVATE ${PROJECT_WARNINGS})
@@ -103,6 +104,8 @@ add_executable(ChessTrainer WIN32
     src/ui/app_puzzles.cpp
     src/ui/app_shots.cpp
     src/ui/app_update.cpp
+    src/ui/app_vision.cpp
+    src/ui/fx.cpp
     src/ui/board_view.cpp
     src/ui/game_session.cpp
     src/ui/grades.cpp

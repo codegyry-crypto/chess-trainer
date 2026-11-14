@@ -242,7 +242,7 @@ Move BoardView::update(Rectangle r, Position& pos, bool interactive, PieceSet& s
     }
 
     const bool showDrag = dragging_ && dragMoved_ && selected_ >= 0;
-    for (int sq = 0; sq < 64; ++sq) {
+    for (int sq = 0; sq < 64 && !opt.hidePieces; ++sq) {
         if (pos.at(sq) == NoPiece) continue;
         if (showDrag && sq == selected_) continue;
         bool animTarget = false;
@@ -264,7 +264,7 @@ Move BoardView::update(Rectangle r, Position& pos, bool interactive, PieceSet& s
             DrawRectangleRec(squareRect(hoverSq), ::Color{255, 255, 255, 55});
     }
 
-    if (animating) {
+    if (animating && !opt.hidePieces) {
         const float k = easeOut(float((GetTime() - animStart_) / AnimTime));
         for (const Anim& a : anims_) {
             const Rectangle f = squareRect(a.from), to = squareRect(a.to);
@@ -279,7 +279,7 @@ Move BoardView::update(Rectangle r, Position& pos, bool interactive, PieceSet& s
     if (rightFrom_ >= 0 && IsMouseButtonDown(MOUSE_BUTTON_RIGHT) && hoverSq >= 0)
         drawArrow({rightFrom_, hoverSq, ::Color{21, 120, 27, 140}});
 
-    if (showDrag) {
+    if (showDrag && !opt.hidePieces) {
         const float s = cell_ * 1.08f;
         set.draw(pos.at(selected_), {mouse.x - s / 2, mouse.y - s / 2, s, s});
     }
