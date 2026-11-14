@@ -108,20 +108,8 @@ void App::saveMistakesAsPuzzles() {
     review_.mistakesSaved = true;
     progress("review");
     if (review_.myColor < 0) return;
-    int added = 0;
-    for (size_t i = 1; i < review_.moves.size() && i < grades_.size(); ++i) {
-        const chess::Color mover = i % 2 == 0 ? review_.firstMover : ~review_.firstMover;
-        if ((mover == chess::White) != (review_.myColor == 0)) continue;
-        if (!isError(grades_[i].grade)) continue;
-        if (evals_[i].bestUci.empty()) continue;
-        const Position before = reviewPosition(int(i) - 1);
-        const std::string fen = before.fen();
-        profile_.srsAdd({"mine-" + std::to_string(std::hash<std::string>{}(fen + evals_[i].bestUci)), fen,
-                         chess::toUCI(review_.moves[i - 1]) + " " + evals_[i].bestUci, "mine", "mine",
-                         profile_.puzzleRating()},
-                        storage::Profile::today() - 1);
-        ++added;
-    }
+    const int added = addMistakePuzzles(analysis::findMistakes(review_.startFen, review_.moves, evals_,
+                                                               review_.myColor == 0 ? chess::White : chess::Black));
     if (added) toast("Твои ошибки (" + std::to_string(added) + ") добавлены в «Задачи → Мои ошибки»");
 }
 

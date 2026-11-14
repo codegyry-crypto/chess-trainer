@@ -88,6 +88,7 @@ add_library(chess_analysis STATIC
     src/analysis/review.cpp
     src/analysis/explain.cpp
     src/analysis/analyzer.cpp
+    src/analysis/weakness.cpp
 )
 target_link_libraries(chess_analysis PUBLIC chess_engine)
 target_compile_options(chess_analysis PRIVATE ${PROJECT_WARNINGS})
@@ -108,6 +109,7 @@ add_executable(ChessTrainer WIN32
     src/ui/app_update.cpp
     src/ui/app_vision.cpp
     src/ui/fx.cpp
+    src/ui/app_weakness.cpp
     src/ui/board_view.cpp
     src/ui/game_session.cpp
     src/ui/grades.cpp

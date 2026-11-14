@@ -1,5 +1,6 @@
 #pragma once
 #include "analysis/analyzer.h"
+#include "analysis/weakness.h"
 #include "analysis/review.h"
 #include "core/pgn.h"
 #include "engine/bots.h"
@@ -68,6 +69,10 @@ private:
     void drawProfileOverview(float top);
     void drawProfileGames(float top);
     void drawProfileAchievements(float top);
+    void drawProfileWeakness(float top);
+    void pollWeakness();
+    const analysis::WeaknessReport& weaknessReport();
+    int addMistakePuzzles(const analysis::GameMistakes& g);
     std::vector<storage::PlanItem>& todayPlan();
     void progress(const std::string& kind, const std::string& arg = {});
     void checkAchievements();
@@ -287,6 +292,13 @@ private:
     std::vector<storage::PlanItem> plan_;
     int planDay_ = -1;
     int profileTab_ = 0;
+    analysis::Analyzer weakAnalyzer_;
+    analysis::WeaknessReport weakReport_;
+    int64_t weakGameId_ = 0;
+    chess::Color weakColor_ = chess::White;
+    double weakNextCheck_ = 0;
+    int weakPending_ = 0;
+    bool weakDirty_ = true, weakFailed_ = false;
     int lessonSec_ = 0, lessonIdx_ = -1, lessonStep_ = 0;
     float lessonScroll_ = 0;
 

@@ -1,6 +1,7 @@
 #include "analysis/analyzer.h"
 #include "analysis/explain.h"
 #include "analysis/review.h"
+#include "analysis/weakness.h"
 #include "core/notation.h"
 #include "uci/uci_engine.h"
 
@@ -163,6 +164,65 @@ static void testReview() {
     CHECK(std::string(gradeName(Grade::Brilliant)) == "Бриллиантовый ход" && std::string(gradeSymbol(Grade::Great)) == "!");
 }
 
+
+static std::vector<Move> line(Position p, const char* uci) {
+    std::vector<Move> out;
+    std::string s(uci), u;
+    for (size_t i = 0; i <= s.size(); ++i) {
+        if (i < s.size() && s[i] != ' ') { u += s[i]; continue; }
+        if (u.empty()) continue;
+        out.push_back(parseUCI(p, u));
+        p.makeMove(out.back());
+        u.clear();
+    }
+    return out;
+}
+
+static void testWeakness() {
+    const auto scholar = line(Position{}, "e2e4 e7e5 f1c4 b8c6 d1h5 g8f6 h5f7");
+    std::vector<Eval> ev8 = {ev(20), ev(30), ev(25), ev(40), ev(30), ev(50, "g7g6"), ev(9990, "h5f7"), ev(10000)};
+    ev8[6].mate = true, ev8[6].mateIn = 1;
+    ev8[7].mate = true;
+    GameMistakes g = findMistakes("", scholar, ev8, Black);
+    CHECK(g.mistakes.size() == 1);
+    const Mistake& m = g.mistakes[0];
+    CHECK(m.ply == 5 && m.moveNumber == 3 && m.phase == 0 && m.piece == Knight);
+    CHECK(m.kind == ErrorKind::AllowedMate && m.grade == Grade::Blunder);
+    CHECK(m.puzzle && m.prevUci == "d1h5" && m.bestUci == "g7g6");
+    CHECK(m.fen == "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/8/PPPP1PPP/RNBQK1NR w KQkq - 2 3");
+    CHECK(mistakeKey(m).rfind("mine-", 0) == 0);
+    CHECK(findMistakes("", scholar, ev8, White).mistakes.empty());
+
+    ev8[5].hasSecond = true, ev8[5].secondCp = 60;
+    CHECK(findMistakes("", scholar, ev8, Black).mistakes.size() == 1 && !findMistakes("", scholar, ev8, Black).mistakes[0].puzzle);
+
+    const std::string fen = "4k3/8/3p4/8/8/5N2/8/4K3 w - - 0 25";
+    Position fp;
+    fp.setFEN(fen);
+    const GameMistakes hung = findMistakes(fen, line(fp, "f3e5"), {ev(300, "f3d4"), ev(-50, "d6e5")}, White);
+    CHECK(hung.moves[2] == 1 && hung.mistakes.size() == 1);
+    CHECK(hung.mistakes[0].kind == ErrorKind::HungPiece && hung.mistakes[0].phase == 2 && hung.mistakes[0].piece == Knight);
+    CHECK(!hung.mistakes[0].puzzle);
+    const GameMistakes ok = findMistakes(fen, line(fp, "f3g5"), {ev(300, "f3d4"), ev(270, "e8e7")}, White);
+    CHECK(ok.mistakes.empty() && ok.moves[2] == 1);
+
+    const GameMistakes back = decodeMistakes(encodeMistakes(hung));
+    CHECK(back.moves[2] == 1 && back.mistakes.size() == 1 && back.mistakes[0].kind == ErrorKind::HungPiece &&
+          back.mistakes[0].moveNumber == 25 && back.mistakes[0].winLoss == int(hung.mistakes[0].winLoss));
+
+    WeaknessReport r;
+    CHECK(weaknessPhrase(r).empty() && weakestTheme(r).empty());
+    addToReport(r, g);
+    addToReport(r, hung);
+    addToReport(r, hung);
+    CHECK(r.games == 3 && r.errors == 3 && r.phase[2] == 2 && r.kind[int(ErrorKind::HungPiece)] == 2 && r.piece[Knight] == 3);
+    CHECK(r.bucket[0] == 1 && r.bucket[2] == 2);
+    const std::string phrase = weaknessPhrase(r);
+    CHECK(phrase.find("теряешь фигуры на 21–30 ходу") != std::string::npos && phrase.find("коня") != std::string::npos);
+    CHECK(phrase.find("в эндшпиле — 2 из 3") != std::string::npos);
+    CHECK(weakestTheme(r) == "hangingPiece");
+}
+
 static void testStockfish() {
     namespace fs = std::filesystem;
     fs::path dir = fs::current_path() / "stockfish";
@@ -199,6 +259,8 @@ static void testStockfish() {
     CHECK(evals.back().mate && evals.back().cp > 0);
     CHECK(evals[1].hasSecond);
     const auto r = reviewMoves(evals, moves);
+    const auto gm = findMistakes("", moves, evals, Black);
+    CHECK(gm.mistakes.size() == 1 && gm.mistakes[0].kind == ErrorKind::AllowedMate && !gm.mistakes[0].puzzle);
     CHECK(r[0].grade == Grade::Book);
     CHECK(r[5].grade == Grade::Blunder);
     CHECK(r[6].grade == Grade::Best || r[6].grade == Grade::Great);
@@ -254,6 +316,7 @@ int main() {
     testExplain();
     testFormulas();
     testReview();
+    testWeakness();
     testStockfish();
     std::printf("%d checks, %d failures\n", checks, failures);
     return failures ? 1 : 0;

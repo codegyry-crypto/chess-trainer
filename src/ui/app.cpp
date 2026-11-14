@@ -264,6 +264,7 @@ bool App::boardFlipped() const {
 void App::frame() {
     updateBot();
     pollPuzzleImport();
+    pollWeakness();
     if (autoPlay_ && screen_ == Screen::Puzzles && puzzleState_ == PuzzleState::Play) puzzleMove(run_.expected());
     if (autoPlay_ && bot_ && !session_.over() && humanToMove()) {
         const auto legal = session_.position().legalMoves();
@@ -1219,9 +1220,9 @@ void App::drawProfile() {
     if (button({M + 8, M + 4, 120, 42}, "‹ Назад", Style::Ghost) || (inputEnabled() && IsKeyPressed(KEY_ESCAPE)))
         screen_ = Screen::Menu;
     text("Профиль", {M + 16, M + 60}, 30, t.text, true);
-    const char* tabs[] = {"Обзор", "Партии", "Достижения"};
+    const char* tabs[] = {"Обзор", "Партии", "Достижения", "Ошибки в партиях"};
     float tx = M + 16 + measure("Профиль", 30, true).x + 32;
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < 4; ++i) {
         const float w = measure(tabs[i], 16).x + 36;
         if (chip({tx, M + 62, w, 38}, tabs[i], profileTab_ == i)) profileTab_ = i;
         tx += w + 8;
@@ -1230,6 +1231,7 @@ void App::drawProfile() {
     if (profileTab_ == 0) drawProfileOverview(top);
     if (profileTab_ == 1) drawProfileGames(top);
     if (profileTab_ == 2) drawProfileAchievements(top);
+    if (profileTab_ == 3) drawProfileWeakness(top);
 }
 
 void App::drawProfileOverview(float top) {
