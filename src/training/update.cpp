@@ -30,14 +30,16 @@ bool isNewer(const std::string& tag, const std::string& current) {
 }
 
 std::string latestTag() {
-    const auto file = std::filesystem::temp_directory_path() / "chess-trainer-latest.json";
+    const auto file = std::filesystem::temp_directory_path() / "chess-trainer-releases.atom";
     training::ImportProgress p;
-    if (!training::downloadFile(L"api.github.com", L"/repos" + Repo + L"/releases/latest", file, p)) return {};
+    if (!training::downloadFile(L"github.com", Repo + L"/releases.atom", file, p)) return {};
     std::ifstream in(file);
-    const std::string json((std::istreambuf_iterator<char>(in)), {});
-    std::smatch m;
-    if (!std::regex_search(json, m, std::regex(R"re("tag_name"\s*:\s*"(v[0-9.]+)")re"))) return {};
-    return m[1];
+    const std::string feed((std::istreambuf_iterator<char>(in)), {});
+    const std::regex re(R"(releases/tag/(v[0-9.]+))");
+    std::string best;
+    for (std::sregex_iterator it(feed.begin(), feed.end(), re), end; it != end; ++it)
+        if (best.empty() || isNewer((*it)[1], best)) best = (*it)[1];
+    return best;
 }
 
 bool downloadInstaller(const std::string& tag, const std::filesystem::path& to, training::ImportProgress& p) {
