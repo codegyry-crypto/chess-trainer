@@ -14,6 +14,7 @@ std::vector<PlanItem> buildPlan(const PlanInput& in) {
     p.push_back({"puzzles", "10 задач: " + in.themeName, in.theme, 15, 10});
     if (!in.lesson.empty()) p.push_back({"lesson", "Урок: " + in.lessonTitle, in.lesson, 10});
     if (!in.endgame.empty()) p.push_back({"endgame", "Эндшпиль: " + in.endgameTitle, in.endgame, 10});
+    p.push_back({"opening", "Повторить дебют: 3 ветки", "", 5, 3});
     p.push_back({"rated", "Рейтинговая партия", "", 15});
     p.push_back({"review", "Разбор этой партии", "", 5, 1, 0, true});
     return p;

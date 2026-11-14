@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS profile (key TEXT PRIMARY KEY, value TEXT);
 CREATE TABLE IF NOT EXISTS puzzle_done (id TEXT PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS srs (key TEXT PRIMARY KEY, fen TEXT, moves TEXT, rating INTEGER, themes TEXT,
     source TEXT, step INTEGER, due INTEGER);
+CREATE TABLE IF NOT EXISTS opening_srs (key TEXT PRIMARY KEY, step INTEGER, due INTEGER);
 CREATE TABLE IF NOT EXISTS games (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     date TEXT, opponent TEXT, bot_id TEXT, opponent_rating INTEGER,
@@ -175,6 +176,19 @@ void Profile::srsResult(const std::string& key, bool solved, int day) {
         return;
     }
     Stmt(db_, "UPDATE srs SET step = ?, due = ? WHERE key = ?").bind(1, step).bind(2, day + intervals[step]).bind(3, key).run();
+}
+
+std::vector<OpeningReview> Profile::openingReviews() const {
+    std::vector<OpeningReview> out;
+    if (!db_) return out;
+    Stmt q(db_, "SELECT key, step, due FROM opening_srs");
+    while (q.step()) out.push_back({q.text(0), q.integer(1), q.integer(2)});
+    return out;
+}
+
+void Profile::setOpeningReview(const OpeningReview& r) {
+    if (!db_) return;
+    Stmt(db_, "INSERT OR REPLACE INTO opening_srs(key, step, due) VALUES(?,?,?)").bind(1, r.key).bind(2, r.step).bind(3, r.due).run();
 }
 
 Streak Profile::streak() const {

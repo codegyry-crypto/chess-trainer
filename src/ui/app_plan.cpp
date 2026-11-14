@@ -107,6 +107,7 @@ void App::startPlanItem(const storage::PlanItem& item) {
     if (item.kind == "endgame")
         for (size_t i = 0; i < training::endgames().size(); ++i)
             if (training::endgames()[i].id == item.arg) openEndgame(int(i));
+    if (item.kind == "opening") reviewOpenings();
     if (item.kind == "rated") openRated();
     if (item.kind == "review") openLastReview(Screen::Plan);
 }

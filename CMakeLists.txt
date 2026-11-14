@@ -77,6 +77,7 @@ add_library(chess_training STATIC
     src/training/update.cpp
     src/training/lessons.cpp
     src/training/endgames.cpp
+    src/training/openings.cpp
 )
 target_link_libraries(chess_training PUBLIC chess_core zstd winhttp shell32)
 target_compile_options(chess_training PRIVATE ${PROJECT_WARNINGS})
@@ -96,6 +97,7 @@ add_executable(ChessTrainer WIN32
     src/ui/app_analysis.cpp
     src/ui/app_coach.cpp
     src/ui/app_lessons.cpp
+    src/ui/app_openings.cpp
     src/ui/app_endgames.cpp
     src/ui/app_plan.cpp
     src/ui/app_puzzles.cpp
@@ -152,3 +154,7 @@ target_link_libraries(training_tests PRIVATE chess_training chess_profile chess_
 target_compile_options(training_tests PRIVATE ${PROJECT_WARNINGS})
 target_compile_definitions(training_tests PRIVATE CHESS_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 add_test(NAME training_tests COMMAND training_tests)
+add_executable(openings_check EXCLUDE_FROM_ALL tests/openings_check.cpp)
+target_link_libraries(openings_check PRIVATE chess_training chess_analysis)
+target_compile_options(openings_check PRIVATE ${PROJECT_WARNINGS})
+target_compile_definitions(openings_check PRIVATE CHESS_SOURCE_DIR="${CMAKE_SOURCE_DIR}")

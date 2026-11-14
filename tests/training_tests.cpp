@@ -3,6 +3,7 @@
 #include "engine/bots.h"
 #include "training/endgames.h"
 #include "training/lessons.h"
+#include "training/openings.h"
 #include "training/puzzles.h"
 #include "training/update.h"
 
@@ -196,7 +197,107 @@ static void testUpdate() {
     CHECK(update::isNewer("v1.1", "1.0.0"));
 }
 
+static void testOpenings() {
+    namespace fs = std::filesystem;
+    const auto reps = parseRepertoires(
+        "# t | Тест | b\nОписание\nв две строки\n= Первая\ne4\nc6 Идея хода\nd4\nd5 Центр\n"
+        "= Вторая | e4 c6\nNc3\nd5 Тоже центр\n= Плохая | e4 c6 d4 d5\nNc3\nKe4\n# w | Белые | w\n= Линия\ne4 Центр\ne5\n");
+    CHECK(reps.size() == 2);
+    CHECK(reps[0].id == "t" && reps[0].title == "Тест" && reps[0].black && reps[0].text == "Описание\nв две строки");
+    CHECK(!reps[1].black && reps[1].lines.size() == 1);
+    CHECK(reps[0].lines.size() == 3);
+    CHECK(reps[0].lines[0].moves.size() == 4 && reps[0].lines[0].notes[1] == "Идея хода" && reps[0].lines[0].notes[0].empty());
+    CHECK(reps[0].lines[1].moves.size() == 4 && reps[0].lines[1].moves[1] == "c6" && reps[0].lines[1].notes[3] == "Тоже центр");
+    CHECK(lineMoves(reps[0].lines[2]).size() == 5);
+
+    const OpeningTree tree = buildTree(reps[0]);
+    Position p;
+    CHECK(tree.at(p) && tree.at(p)->size() == 1);
+    p.makeMove(parseSAN(p, "e4"));
+    CHECK(tree.at(p)->size() == 1 && (*tree.at(p))[0].note == "Идея хода");
+    p.makeMove(parseSAN(p, "c6"));
+    CHECK(tree.at(p)->size() == 2);
+    p.makeMove(parseSAN(p, "h4"));
+    CHECK(!tree.at(p));
+    const auto errors = checkRepertoire(reps[0]);
+    CHECK(errors.size() == 1 && errors[0].find("Ke4") != std::string::npos);
+    CHECK(checkRepertoire(reps[1]).size() == 1);
+
+    Position a, b;
+    for (const char* m : {"d4", "d5", "c4", "e6", "Nc3", "Nf6", "Nf3"}) a.makeMove(parseSAN(a, m));
+    for (const char* m : {"d4", "d5", "c4", "e6", "Nf3", "Nf6", "Nc3"}) b.makeMove(parseSAN(b, m));
+    CHECK(positionKey(a) == positionKey(b));
+
+    const auto pgn = linesFromPGN("[Event \"x\"]\n\n1. e4 {Центр} c6 2. d4 (2. Nc3 d5 {Тоже\nтут} 3. Nf3) 2... d5 3. e5 $1 Bf5 *\n"
+                                  "[Event \"y\"]\n1.d4 d5 2.c4 e6 1/2-1/2");
+    CHECK(pgn.size() == 3);
+    if (pgn.size() == 3) {
+        CHECK(pgn[0].moves == (std::vector<std::string>{"e4", "c6", "Nc3", "d5", "Nf3"}) && pgn[0].notes[3] == "Тоже тут");
+        CHECK(pgn[1].moves.size() == 6 && pgn[1].moves[5] == "Bf5" && pgn[1].notes[0] == "Центр" && pgn[1].custom);
+        CHECK(pgn[2].moves.size() == 4 && pgn[2].title.find("c4") != std::string::npos);
+    }
+
+    const fs::path builtin = fs::path(CHESS_SOURCE_DIR) / "assets" / "openings" / "openings.txt";
+    const fs::path user = fs::temp_directory_path() / "chess_trainer_openings_test.txt";
+    auto all = loadRepertoires(builtin, {});
+    CHECK(all.size() == 6);
+    size_t lines = 0;
+    for (const auto& r : all) {
+        for (const auto& e : checkRepertoire(r)) std::cout << e << '\n';
+        CHECK(checkRepertoire(r).empty());
+        CHECK(!r.text.empty());
+        lines += r.lines.size();
+    }
+    CHECK(lines >= 80);
+    all[0].lines.push_back(pgn[1]);
+    all[5].lines.push_back(pgn[0]);
+    saveCustomLines(all, user);
+    const auto merged = loadRepertoires(builtin, user);
+    CHECK(merged.size() == 6 && merged[0].lines.size() == all[0].lines.size() && merged[5].lines.size() == 1);
+    CHECK(merged[0].lines.back().custom && merged[0].lines.back().notes[0] == "Центр" && !merged[0].lines[0].custom);
+    CHECK(merged[5].lines[0].moves == pgn[0].moves && merged[5].lines[0].title == pgn[0].title);
+    std::error_code ec;
+    fs::remove(user, ec);
+
+    OpeningCard c = reviewCard({}, true, 100);
+    CHECK(c.step == 1 && c.due == 101);
+    c = reviewCard(c, true, 101);
+    CHECK(c.step == 2 && c.due == 104);
+    c = reviewCard(c, false, 104);
+    CHECK(c.step == 0 && c.due == 104);
+    c = reviewCard(c, true, 104);
+    CHECK(c.due == 105);
+    int last = 0;
+    for (int i = 0; i < 10; ++i) {
+        const OpeningCard n = reviewCard(c, true, 200);
+        CHECK(n.due - 200 >= last);
+        last = n.due - 200;
+        c = n;
+    }
+    CHECK(last == 60);
+
+    const fs::path db = fs::temp_directory_path() / "chess_trainer_opening_test.db";
+    fs::remove(db, ec);
+    {
+        storage::Profile prof;
+        CHECK(prof.open(db));
+        CHECK(prof.openingReviews().empty());
+        prof.setOpeningReview({"caro|k1", 1, 101});
+        prof.setOpeningReview({"caro|k2", 0, 100});
+        prof.setOpeningReview({"caro|k1", 2, 104});
+    }
+    {
+        storage::Profile prof;
+        CHECK(prof.open(db));
+        const auto r = prof.openingReviews();
+        CHECK(r.size() == 2);
+        for (const auto& x : r) CHECK(x.key == "caro|k1" ? x.step == 2 && x.due == 104 : x.step == 0 && x.due == 100);
+    }
+    fs::remove(db, ec);
+}
+
 int main() {
+    testOpenings();
     testUpdate();
     testEndgames();
     testLessons();

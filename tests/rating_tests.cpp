@@ -140,12 +140,12 @@ static void testPlan() {
     using namespace storage;
     PlanInput in{"fork", "Вилка", "l1", "Урок 1", "queen", "Мат ферзём"};
     auto plan = buildPlan(in);
-    CHECK(plan.size() == 5);
+    CHECK(plan.size() == 6);
     CHECK(plan[0].kind == "puzzles" && plan[0].arg == "fork" && plan[0].target == 10);
     CHECK(plan.back().kind == "review" && plan.back().needsPrev);
     const int minutes = planMinutes(plan);
     CHECK(minutes >= 30 && minutes <= 60);
-    CHECK(buildPlan({"fork", "Вилка", "", "", "", ""}).size() == 3);
+    CHECK(buildPlan({"fork", "Вилка", "", "", "", ""}).size() == 4);
 
     CHECK(!advancePlan(plan, "puzzles", "pin"));
     CHECK(!advancePlan(plan, "puzzles", ""));
@@ -159,11 +159,14 @@ static void testPlan() {
     CHECK(advancePlan(plan, "review", ""));
     CHECK(!planComplete(plan));
     CHECK(advancePlan(plan, "endgame", "queen"));
+    CHECK(!planComplete(plan));
+    for (int i = 0; i < 3; ++i) CHECK(advancePlan(plan, "opening", ""));
+    CHECK(!advancePlan(plan, "opening", ""));
     CHECK(planComplete(plan));
 
     const auto back = decodePlan(encodePlan(plan));
     CHECK(back.size() == plan.size());
-    CHECK(back[0].title == plan[0].title && back[0].done == 10 && back[4].needsPrev && planComplete(back));
+    CHECK(back[0].title == plan[0].title && back[0].done == 10 && back[5].needsPrev && planComplete(back));
 
     namespace fs = std::filesystem;
     const fs::path file = fs::temp_directory_path() / "chess_trainer_plan_test.db";

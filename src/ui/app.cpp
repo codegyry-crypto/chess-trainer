@@ -169,10 +169,13 @@ int App::run(int argc, char** argv) {
         for (auto& id : profile_.donePuzzles()) puzzleDone_.insert(std::move(id));
         morePuzzlesFile_ = shotFile_.empty() ? appDataDir() / "puzzles_more.csv"
                                              : fs::temp_directory_path() / "chess_trainer_shot_more.csv";
+        myOpeningsFile_ = shotFile_.empty() ? appDataDir() / "openings.txt" : fs::temp_directory_path() / "chess_trainer_shot_openings.txt";
         if (!shotFile_.empty()) {
             std::error_code ec;
             fs::remove(morePuzzlesFile_, ec);
+            fs::remove(myOpeningsFile_, ec);
         }
+        loadOpenings();
     }
     sound::init(assetsDir_ / "sounds");
     pieces_.scan(assetsDir_ / "pieces");
@@ -297,6 +300,7 @@ void App::frame() {
     case Screen::Lessons: drawLessons(); break;
     case Screen::Endgames: drawEndgames(); break;
     case Screen::Plan: drawPlan(); break;
+    case Screen::Openings: drawOpenings(); break;
     }
     setInputEnabled(true);
     if (newGameOpen_) drawNewGameModal();
@@ -325,7 +329,7 @@ void App::drawMenu() {
     const Item items[] = {
         {"Играть", "Тренировочная партия без рейтинга", true},  {"Уроки", "Курс от основ до эндшпиля", true},
         {"Задачи", "Тактика и твои ошибки", true},     {"Эндшпили", "Доиграй позицию против Stockfish", true},
-        {"Анализ", "Разбор партий Stockfish'ом", true},     {"Дебюты", "Репертуар с повторением", false},
+        {"Анализ", "Разбор партий Stockfish'ом", true},     {"Дебюты", "Репертуар с повторением", true},
         {"План дня", "Тренировка на сегодня", true},
     };
     const float gap = 14, cardW = (colW - gap) / 2, cardH = 104;
@@ -365,6 +369,10 @@ void App::drawMenu() {
             screen_ = Screen::Endgames;
         }
         if (items[i].ready && clicked(r) && i == 4) openLastReview(Screen::Menu);
+        if (items[i].ready && clicked(r) && i == 5) {
+            opRep_ = -1;
+            screen_ = Screen::Openings;
+        }
         if (items[i].ready && clicked(r) && i == 6) screen_ = Screen::Plan;
     }
     y += 4 * (cardH + gap) + 10;

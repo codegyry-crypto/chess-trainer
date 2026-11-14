@@ -112,6 +112,30 @@ void App::setupShot(const std::string& screen) {
         pollEndgame();
         egShowMistake_ = true;
     }
+    if (screen == "openings") screen_ = Screen::Openings;
+    if (screen == "opening") openRepertoire(0), opPly_ = 5;
+    if (screen == "openingdrill") openRepertoire(2), startOpeningDrill();
+    if (screen == "openingempty") openRepertoire(4);
+    if (screen == "openingadd") {
+        openRepertoire(4);
+        opMode_ = OpMode::Add;
+        opPos_ = chess::Position();
+        for (const chess::Move& m : parseLine("d4 Nf6 c4 g6 Nc3")) opPos_.makeMove(m), opMoves_.push_back(m);
+    }
+    if (screen == "openingdone" || screen == "openingfail") {
+        openRepertoire(3);
+        startOpeningDrill();
+        for (int i = 0; opState_ != OpState::Done; ++i) {
+            if (opState_ == OpState::Reply) {
+                openingReply();
+            } else if (screen == "openingfail" && i > 6) {
+                openingFail();
+                break;
+            } else {
+                openingMove(repTrees_[opRep_].at(opPos_)->front().move);
+            }
+        }
+    }
     if (screen == "lessons") {
         for (const auto& l : lessons_[0].lessons) lessonsDone_.insert(l.id);
         lessonsDone_.insert(lessons_[1].lessons[0].id);

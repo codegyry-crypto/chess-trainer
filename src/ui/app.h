@@ -8,6 +8,7 @@
 #include "storage/profile.h"
 #include "training/endgames.h"
 #include "training/lessons.h"
+#include "training/openings.h"
 #include "training/puzzles.h"
 #include "ui/board_view.h"
 #include "ui/game_session.h"
@@ -22,6 +23,7 @@
 #include <mutex>
 #include <random>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -32,7 +34,7 @@ public:
     int run(int argc, char** argv);
 
 private:
-    enum class Screen { Menu, Game, Settings, Profile, Analysis, Puzzles, Lessons, Endgames, Plan };
+    enum class Screen { Menu, Game, Settings, Profile, Analysis, Puzzles, Lessons, Endgames, Plan, Openings };
     enum class PuzzleState { Empty, Setup, Play, Reply, Solved, Wrong };
     enum class SettingsTab { Look, Pieces, Game, Sound, About };
 
@@ -88,6 +90,32 @@ private:
     void pollEndgame();
     void drawEndgameList();
     void drawEndgames();
+
+    struct OpeningStats {
+        int total = 0, learned = 0, review = 0, fresh = 0;
+    };
+    void loadOpenings();
+    OpeningStats openingStats(int rep) const;
+    bool openingDue(const std::string& key) const;
+    int openingDueBelow(chess::Position& p, std::unordered_set<std::string>& seen) const;
+    chess::Color openingColor() const { return reps_[opRep_].black ? chess::Black : chess::White; }
+    std::string openingCardKey() const;
+    void saveOpeningCard(const std::string& key, training::OpeningCard c);
+    void openRepertoire(int rep);
+    void selectOpeningLine(int line);
+    void reviewOpenings();
+    void startOpeningDrill();
+    void openingStep();
+    void openingReply();
+    void openingFail();
+    void openingMove(chess::Move m);
+    void addOpeningLines(std::vector<training::OpeningLine> lines);
+    std::string openingMovesText(const std::vector<chess::Move>& moves, size_t count, float maxWidth) const;
+    void drawOpeningList();
+    void drawOpeningView(Rectangle boardRect, float px);
+    void drawOpeningDrill(Rectangle boardRect, float px);
+    void drawOpeningAdd(Rectangle boardRect, float px);
+    void drawOpenings();
 
     void drawAnalysis();
     void drawEvalBar(Rectangle r, const analysis::Eval& e, bool flipped);
@@ -261,6 +289,23 @@ private:
     std::string egMsg_;
     bool egPromoted_ = false, egShowMistake_ = false;
     std::unordered_set<std::string> egDone_;
+
+    enum class OpMode { View, Drill, Add };
+    enum class OpState { Ask, Reply, Done };
+    std::vector<training::Repertoire> reps_;
+    std::vector<training::OpeningTree> repTrees_;
+    std::unordered_map<std::string, training::OpeningCard> opCards_;
+    std::filesystem::path myOpeningsFile_;
+    int opRep_ = -1, opLine_ = -1, opRuns_ = 0;
+    size_t opPly_ = 0, opBase_ = 0;
+    OpMode opMode_ = OpMode::View;
+    OpState opState_ = OpState::Ask;
+    chess::Position opPos_;
+    std::vector<chess::Move> opMoves_;
+    std::string opNote_, opReply_;
+    bool opShow_ = false, opNew_ = false, opFailed_ = false;
+    double opTimer_ = 0, opDeleteUntil_ = 0;
+    float opScroll_ = 0;
 
     bool coachOn_ = false;
     engine::Searcher checkSearcher_, hintSearcher_;

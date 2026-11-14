@@ -43,6 +43,11 @@ struct SrsItem {
     int due = 0;
 };
 
+struct OpeningReview {
+    std::string key;
+    int step = 0, due = 0;
+};
+
 struct Stats {
     int games = 0, wins = 0, draws = 0, losses = 0;
     int streak = 0;
@@ -84,6 +89,9 @@ public:
     void srsAdd(SrsItem item, int day);
     std::vector<SrsItem> srsItems(int day, bool dueOnly, const std::string& source) const;
     void srsResult(const std::string& key, bool solved, int day);
+
+    std::vector<OpeningReview> openingReviews() const;
+    void setOpeningReview(const OpeningReview& r);
 
     std::vector<GameRecord> recentGames(int limit) const;
     std::vector<std::pair<std::string, int>> ratingHistory() const;
