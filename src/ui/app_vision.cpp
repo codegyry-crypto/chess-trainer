@@ -146,14 +146,15 @@ void App::drawVision() {
     text(std::to_string(vis_.errors), {sr.x + iw / 3 + 14, sr.y + 22}, 24, vis_.errors ? t.danger : t.text, true);
     text("Рекорд", {sr.x + 2 * iw / 3 + 14, sr.y + 6}, 13, t.sub);
     text(std::to_string(profile_.counter(bestKey(mode))), {sr.x + 2 * iw / 3 + 14, sr.y + 22}, 24, t.text, true);
-    if (visEnd_ <= 0 && (button({x, ic.y + ic.height - 62, iw, 46}, visEnd_ == 0 ? "Старт" : "Ещё раз", Style::Primary) ||
-                         (inputEnabled() && IsKeyPressed(KEY_ENTER)))) {
+    if (visEnd_ > 0) {
+        if (button({x, ic.y + ic.height - 62, iw, 46}, "Закончить", Style::Ghost)) visEnd_ = now;
+    } else if (button({x, ic.y + ic.height - 62, iw, 46}, visEnd_ == 0 ? "Старт" : "Ещё раз", Style::Primary) ||
+               (inputEnabled() && IsKeyPressed(KEY_ENTER))) {
         vis_.start(mode, rng_);
         visWrongSq_ = -1;
         visEnd_ = now + RoundSeconds;
         sound::play(sound::Id::GameStart);
     }
-    if (visEnd_ > 0 && button({x, ic.y + ic.height - 62, iw, 46}, "Закончить", Style::Ghost)) visEnd_ = now;
     if (button({px, ic.y + ic.height + 12, PanelP, 42}, "‹ В меню", Style::Ghost) ||
         (inputEnabled() && IsKeyPressed(KEY_ESCAPE))) {
         visEnd_ = 0;
