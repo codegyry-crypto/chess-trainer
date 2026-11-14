@@ -36,7 +36,7 @@ void App::setupShot(const std::string& screen) {
         findOpponent();
     }
 
-    const bool profileShot = screen == "profile" || screen == "profilegames" || screen == "achievements";
+    const bool profileShot = screen == "profile" || screen == "profilegames" || screen == "achievements" || screen == "weakness";
     if (profileShot || screen == "elo" || screen == "menu" || screen == "plan") {
         const int opp[] = {1000, 1200, 1000, 700, 1000, 1000, 1200, 1200, 1000, 1400, 1200, 1200, 1400, 1200};
         const double res[] = {1, 0, 1, 1, 0.5, 1, 0, 1, 1, 0, 1, 1, 0.5, 1};
@@ -53,6 +53,23 @@ void App::setupShot(const std::string& screen) {
             g.date = "2026-11-" + std::to_string(10 + i / 5) + " 1" + std::to_string(i % 10) + ":00";
             profile_.recordGame(g);
         }
+        if (screen == "weakness" || screen == "plan") {
+            const int spec[][4] = {{2, 0, 2, 2},  {14, 1, 0, 2},  {17, 1, 0, 2}, {19, 1, 3, 3}, {23, 1, 0, 2},
+                                   {12, 1, 3, 5}, {28, 1, 4, 4},  {33, 2, 4, 6}, {45, 2, 2, 1}, {16, 1, 1, 2},
+                                   {21, 1, 0, 2}, {9, 0, 0, 3},   {38, 2, 4, 1}, {25, 1, 0, 2}};
+            int k = 0;
+            for (const auto& g : profile_.recentGames(14)) {
+                analysis::GameMistakes gm;
+                gm.moves[0] = 10, gm.moves[1] = 18, gm.moves[2] = 7;
+                analysis::Mistake m;
+                m.moveNumber = spec[k][0], m.phase = spec[k][1], m.kind = analysis::ErrorKind(spec[k][2]);
+                m.piece = spec[k][3], m.grade = analysis::Grade::Blunder, m.winLoss = 30;
+                gm.mistakes.push_back(m);
+                profile_.setValue("weak:" + std::to_string(g.id), analysis::encodeMistakes(gm));
+                ++k;
+            }
+            for (int i = 0; i < 6; ++i) profile_.srsAdd({"m" + std::to_string(i), "", "", "mine", "mine"}, storage::Profile::today());
+        }
         const int day = storage::Profile::today();
         for (int d = 3; d >= 0; --d) profile_.markActivity(day - d);
         for (int i = 0; i < 37; ++i) profile_.bump("puzzles_solved");
@@ -64,7 +81,7 @@ void App::setupShot(const std::string& screen) {
         storage::advancePlan(plan, "lesson", plan[1].arg);
         checkAchievements();
         if (profileShot) screen_ = Screen::Profile;
-        profileTab_ = screen == "profilegames" ? 1 : screen == "achievements" ? 2 : 0;
+        profileTab_ = screen == "profilegames" ? 1 : screen == "achievements" ? 2 : screen == "weakness" ? 3 : 0;
         if (screen == "plan") screen_ = Screen::Plan;
     }
     if (screen == "about") screen_ = Screen::Settings, tab_ = SettingsTab::About;

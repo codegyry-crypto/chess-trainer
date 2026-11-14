@@ -27,6 +27,8 @@ std::vector<storage::PlanItem>& App::todayPlan() {
     const auto weak = storage::weakThemes(profile_.srsItems(day, false, ""), themes);
     in.theme = weak.empty() ? themes[size_t(day) % themes.size()] : weak[0].first;
     in.themeName = training::themeName(in.theme);
+    in.weakTheme = analysis::weakestTheme(weaknessReport());
+    in.weakThemeName = training::themeName(in.weakTheme);
     for (const auto& sec : lessons_)
         for (const auto& l : sec.lessons)
             if (in.lesson.empty() && !lessonsDone_.count(l.id)) in.lesson = l.id, in.lessonTitle = l.title;

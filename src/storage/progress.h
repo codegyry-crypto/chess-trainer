@@ -17,6 +17,7 @@ struct PlanInput {
     std::string theme, themeName;
     std::string lesson, lessonTitle;
     std::string endgame, endgameTitle;
+    std::string weakTheme, weakThemeName;
 };
 
 std::vector<PlanItem> buildPlan(const PlanInput& in);

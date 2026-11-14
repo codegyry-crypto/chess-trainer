@@ -146,6 +146,9 @@ static void testPlan() {
     const int minutes = planMinutes(plan);
     CHECK(minutes >= 30 && minutes <= 60);
     CHECK(buildPlan({"fork", "Вилка", "", "", "", ""}).size() == 4);
+    CHECK(buildPlan({"fork", "Вилка", "", "", "", "", "fork", "Вилка"}).size() == 4);
+    const auto weak = buildPlan({"fork", "Вилка", "", "", "", "", "hangingPiece", "Незащищённая фигура"});
+    CHECK(weak.size() == 5 && weak[1].kind == "puzzles" && weak[1].arg == "hangingPiece" && weak[1].target == 5);
 
     CHECK(!advancePlan(plan, "puzzles", "pin"));
     CHECK(!advancePlan(plan, "puzzles", ""));

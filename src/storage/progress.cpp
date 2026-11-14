@@ -12,6 +12,8 @@ namespace storage {
 std::vector<PlanItem> buildPlan(const PlanInput& in) {
     std::vector<PlanItem> p;
     p.push_back({"puzzles", "10 задач: " + in.themeName, in.theme, 15, 10});
+    if (!in.weakTheme.empty() && in.weakTheme != in.theme)
+        p.push_back({"puzzles", "Слабое место из партий: 5 задач «" + in.weakThemeName + "»", in.weakTheme, 8, 5});
     if (!in.lesson.empty()) p.push_back({"lesson", "Урок: " + in.lessonTitle, in.lesson, 10});
     if (!in.endgame.empty()) p.push_back({"endgame", "Эндшпиль: " + in.endgameTitle, in.endgame, 10});
     p.push_back({"opening", "Повторить дебют: 3 ветки", "", 5, 3});
