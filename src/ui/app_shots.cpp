@@ -67,6 +67,7 @@ void App::setupShot(const std::string& screen) {
         profileTab_ = screen == "profilegames" ? 1 : screen == "achievements" ? 2 : 0;
         if (screen == "plan") screen_ = Screen::Plan;
     }
+    if (screen == "about") screen_ = Screen::Settings, tab_ = SettingsTab::About;
     if (screen == "elo") {
         foundBot_ = *engine::botById("positional");
         foundColor_ = chess::White;

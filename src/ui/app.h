@@ -268,6 +268,9 @@ private:
     training::ImportProgress updateProgress_;
     std::string updateTag_;
     bool updateChecked_ = false;
+    bool manualUpdateCheck_ = false;
+    void startUpdateCheck();
+    void pollUpdateCheck();
     double puzzleTimer_ = 0, stormEnd_ = 0;
     int puzzleHint_ = 0, puzzleDelta_ = 0, stormScore_ = 0, stormErrors_ = 0;
     bool puzzleFailed_ = false, menuPuzzle_ = false;

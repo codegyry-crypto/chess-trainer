@@ -4,17 +4,28 @@
 
 namespace ui {
 
+void App::startUpdateCheck() {
+    updateTag_.clear();
+    updateChecked_ = false;
+    updateCheck_ = std::async(std::launch::async, [] {
+        const std::string tag = update::latestTag();
+        return update::isNewer(tag, CHESS_VERSION) ? tag : std::string{};
+    });
+}
+
+void App::pollUpdateCheck() {
+    if (!updateCheck_.valid() || updateCheck_.wait_for(std::chrono::seconds(0)) != std::future_status::ready) return;
+    updateTag_ = updateCheck_.get();
+    updateChecked_ = true;
+    if (manualUpdateCheck_)
+        toast(updateTag_.empty() ? "У тебя последняя версия " CHESS_VERSION
+                                 : "Доступно обновление " + updateTag_ + " — кнопка «Обновить» на главном экране");
+    manualUpdateCheck_ = false;
+}
+
 bool App::drawUpdateBanner(Rectangle r) {
-    if (!settings_.checkUpdates) return false;
-    if (!updateChecked_ && !updateCheck_.valid())
-        updateCheck_ = std::async(std::launch::async, [] {
-            const std::string tag = update::latestTag();
-            return update::isNewer(tag, CHESS_VERSION) ? tag : std::string{};
-        });
-    if (updateCheck_.valid() && updateCheck_.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
-        updateTag_ = updateCheck_.get();
-        updateChecked_ = true;
-    }
+    if (settings_.checkUpdates && !updateChecked_ && !updateCheck_.valid()) startUpdateCheck();
+    pollUpdateCheck();
     if (updateTag_.empty()) return false;
 
     const Theme& t = theme();

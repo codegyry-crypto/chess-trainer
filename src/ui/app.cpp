@@ -1653,6 +1653,13 @@ void App::drawSettingsAbout(Rectangle r) {
     const Theme& t = theme();
     text("Шахматный тренер", {r.x, r.y + 8}, 24, t.text, true);
     text("Версия " CHESS_VERSION, {r.x, r.y + 46}, 16, t.sub);
+    const bool checking = updateCheck_.valid();
+    if (button({r.x + 150, r.y + 36, 240, 40}, checking ? "Проверяю…" : "Проверить обновления", Style::Secondary,
+               !checking, 16)) {
+        manualUpdateCheck_ = true;
+        startUpdateCheck();
+    }
+    pollUpdateCheck();
     text("Программа бесплатная. Фигуры и звуки принадлежат их авторам:", {r.x, r.y + 90}, 17, t.text);
     float y = r.y + 126;
     for (const std::string& c : credits_) {
