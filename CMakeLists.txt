@@ -85,6 +85,7 @@ target_compile_options(chess_training PRIVATE ${PROJECT_WARNINGS})
 add_library(chess_analysis STATIC
     src/uci/uci_engine.cpp
     src/analysis/review.cpp
+    src/analysis/explain.cpp
     src/analysis/analyzer.cpp
 )
 target_link_libraries(chess_analysis PUBLIC chess_engine)

@@ -1,4 +1,5 @@
 #include "analysis/analyzer.h"
+#include "analysis/explain.h"
 #include "analysis/review.h"
 #include "core/notation.h"
 #include "uci/uci_engine.h"
@@ -210,7 +211,47 @@ static void testStockfish() {
                 formatEval(evals[5]).c_str());
 }
 
+static std::string san(Position& p, Move m) { return toSAN(p, m); }
+
+static Position at(const char* fen) {
+    Position p;
+    p.setFEN(fen);
+    return p;
+}
+
+static std::string bad(const char* fen, const char* played, std::vector<std::string> reply) {
+    Position p = at(fen);
+    const std::string s = whyBad(p, parseUCI(p, played), reply, san);
+    std::cout << "  " << s << "\n";
+    return s;
+}
+
+static std::string good(const char* fen, std::vector<std::string> line) {
+    const std::string s = whyGood(at(fen), line, san);
+    std::cout << "  " << s << "\n";
+    return s;
+}
+
+static void testExplain() {
+    CHECK(bad("3qk3/8/5n2/8/3Q4/8/8/4K3 b - - 0 1", "d8a8", {"d4f6"}) ==
+          "Ход Qa8 оставил коня на f6 без защиты — ферзь с d4 бьёт его.");
+    CHECK(bad("6k1/1p3ppp/8/8/8/8/8/R5K1 b - - 0 1", "b7b6", {"a1a8"}) == "Ход b6 позволяет мат: Ra8#.");
+    CHECK(bad("r3k3/2p5/8/1N6/8/8/8/4K3 b - - 0 1", "c7c6", {"b5c7", "e8d7", "c7a8"}) ==
+          "Ход c6 позволяет вилку: конь на c7 нападает на короля на e8 и ладью на a8.");
+    CHECK(bad("4k3/8/8/8/8/8/8/R3K3 w - - 0 1", "a1a2", {"e8d7"}).empty());
+    CHECK(good("r3k3/8/8/1N6/8/8/8/4K3 w - - 0 1", {"b5c7", "e8d7", "c7a8"}) ==
+          "вилка: конь на c7 нападает на короля на e8 и ладью на a8");
+    CHECK(good("6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1", {"a1a8"}) == "мат");
+    CHECK(good("4k3/8/8/3p4/8/8/8/3QK3 w - - 0 1", {"d1d5"}) == "забирает пешку на d5 — она без защиты");
+    CHECK(good("4k3/8/2p5/3r4/4P3/8/8/4K3 w - - 0 1", {"e4d5", "c6d5"}) == "выигрывает ладью: exd5 cxd5");
+    CHECK(good("r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5Q2/PPPP1PPP/RNB1KBNR w KQkq - 2 3", {"f1c4"}) ==
+          "угроза мата на f7");
+    CHECK(good("4k3/3r4/8/8/3N4/8/8/R6K w - - 0 1", {"a1d1"}) == "защищает коня на d4");
+    CHECK(good("4k3/8/8/8/8/8/8/R3K3 w - - 0 1", {"a1a2"}).empty());
+}
+
 int main() {
+    testExplain();
     testFormulas();
     testReview();
     testStockfish();
