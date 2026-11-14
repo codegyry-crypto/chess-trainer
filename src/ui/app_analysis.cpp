@@ -1,5 +1,6 @@
 #include "ui/app.h"
 
+#include "analysis/explain.h"
 #include "core/notation.h"
 #include "core/pgn.h"
 #include "ui/fx.h"
@@ -484,7 +485,7 @@ void App::drawAnalysis() {
     }
     py += sc.height + 10;
 
-    const Rectangle ic{px, py, PanelA, 170};
+    const Rectangle ic{px, py, PanelA, 214};
     card(ic);
     if (retry_) {
         const std::string label = reviewMoveLabel(retryMove_);
@@ -520,16 +521,32 @@ void App::drawAnalysis() {
         if (g != Grade::None)
             text(analysis::gradeName(g), {ic.x + 46, ic.y + 45}, 15, gradeColor(g), true);
         float ly = ic.y + 70;
-        if (isBad(g) && !evals_[i].bestUci.empty()) {
-            Position p = reviewPosition(i);
-            const Move best = chess::parseUCI(p, evals_[i].bestUci);
-            const std::string bestSan =
-                best.isNone() ? evals_[i].bestUci : moveName(p, best);
-            text("Лучше было: " + bestSan + "  (" + analysis::formatEval(evals_[i]) + ")", {ic.x + 18, ly}, 16, t.text);
-            ly += 26;
-        }
+        const Position before = reviewPosition(i);
+        const analysis::MoveNamer namer = [this](Position& p, Move m) { return moveName(p, m); };
         const analysis::Eval& cur = evals_[reviewPly_];
-        if (!cur.pv.empty()) {
+        std::string why;
+        if (isBad(g) && !evals_[i].bestUci.empty()) {
+            Position p = before;
+            const Move best = chess::parseUCI(p, evals_[i].bestUci);
+            const std::string bestSan = best.isNone() ? evals_[i].bestUci : moveName(p, best);
+            const std::string reason = analysis::whyGood(before, evals_[i].pv, namer);
+            ly += textWrapped("Лучше было: " + bestSan + "  (" + analysis::formatEval(evals_[i]) + ")" +
+                                  (reason.empty() ? "" : " — " + reason),
+                              {ic.x + 18, ly, ic.width - 36, 44}, 16, t.text) + 2;
+            why = analysis::whyBad(before, review_.moves[i], cur.pv, namer);
+        } else if (g != Grade::None) {
+            std::vector<std::string> line{chess::toUCI(review_.moves[i])};
+            line.insert(line.end(), cur.pv.begin(), cur.pv.end());
+            const std::string reason = analysis::whyGood(before, line, namer);
+            Position p = before;
+            const std::string played = moveName(p, review_.moves[i]);
+            if (!reason.empty() && played.back() != '#')
+                ly += textWrapped(played + " — " + reason, {ic.x + 18, ly, ic.width - 36, 44}, 16,
+                                  t.text) + 2;
+        }
+        if (!why.empty()) {
+            textWrapped(why, {ic.x + 18, ly, ic.width - 36, 40}, 14, t.sub);
+        } else if (!cur.pv.empty()) {
             Position p = reviewPosition(reviewPly_);
             std::string line;
             for (size_t k = 0; k < cur.pv.size() && k < 6; ++k) {
@@ -541,7 +558,7 @@ void App::drawAnalysis() {
             textWrapped("Дальше лучше всего: " + line, {ic.x + 18, ly, ic.width - 36, 40}, 14, t.sub);
         }
         if (isBad(g) && !evals_[i].bestUci.empty() &&
-            button({ic.x + 18, ic.y + 124, 200, 36}, "Найти ход лучше", Style::Primary, true, 15))
+            button({ic.x + 18, ic.y + ic.height - 46, 200, 36}, "Найти ход лучше", Style::Primary, true, 15))
             startRetry(i);
     }
     py += ic.height + 10;
