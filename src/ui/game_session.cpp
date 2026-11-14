@@ -39,7 +39,7 @@ bool canMate(const Position& p, Color c) {
 void GameSession::start(const TimeControl& tc, const std::string& whiteName, const std::string& blackName,
                         const std::string& fen) {
     *this = GameSession();
-    if (!fen.empty() && pos_.setFEN(fen)) startFen_ = fen;
+    if (!fen.empty() && pos_.setFEN(fen)) startFen_ = pos_.chess960() ? pos_.fen() : fen;
     tc_ = tc;
     names_[White] = whiteName;
     names_[Black] = blackName;
@@ -163,6 +163,7 @@ Game GameSession::toGame() const {
     if (tc_.baseSec > 0) g.setTag("TimeControl", std::to_string(tc_.baseSec) + "+" + std::to_string(tc_.incSec));
     if (reason_ == EndReason::Timeout) g.setTag("Termination", "time forfeit");
     g.startFen = startFen_;
+    if (positionAt(0).chess960()) g.setTag("Variant", "Chess960");
     g.moves = moves_;
     g.result = result_;
     return g;

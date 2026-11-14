@@ -1,6 +1,7 @@
 #include "core/position.h"
 
 #include <algorithm>
+#include <cctype>
 #include <sstream>
 
 namespace chess {
@@ -36,28 +37,42 @@ constexpr int KingD[8][2] = {{1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1},
 constexpr int BishopD[4][2] = {{1, 1}, {-1, 1}, {1, -1}, {-1, -1}};
 constexpr int RookD[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
 
-constexpr uint8_t castleMask(Square s) {
-    switch (s) {
-    case 0: return uint8_t(~WhiteOOO & 15);
-    case 4: return uint8_t(~(WhiteOO | WhiteOOO) & 15);
-    case 7: return uint8_t(~WhiteOO & 15);
-    case 56: return uint8_t(~BlackOOO & 15);
-    case 60: return uint8_t(~(BlackOO | BlackOOO) & 15);
-    case 63: return uint8_t(~BlackOO & 15);
-    default: return 15;
-    }
-}
-
 constexpr const char* PieceChars = " PNBRQK  pnbrqk";
 
 }
 
 Position::Position() { setFEN(StartFEN); }
 
+std::string Position::chess960FEN(int n) {
+    static constexpr int Knights[10][2] = {{0, 1}, {0, 2}, {0, 3}, {0, 4}, {1, 2}, {1, 3}, {1, 4}, {2, 3}, {2, 4}, {3, 4}};
+    std::string rank(8, ' ');
+    auto putEmpty = [&](int index, char c) {
+        for (char& x : rank)
+            if (x == ' ' && index-- == 0) return void(x = c);
+    };
+    n = ((n % 960) + 960) % 960;
+    rank[2 * (n % 4) + 1] = 'b';
+    n /= 4;
+    rank[2 * (n % 4)] = 'b';
+    n /= 4;
+    putEmpty(n % 6, 'q');
+    n /= 6;
+    putEmpty(Knights[n][1], 'n');
+    putEmpty(Knights[n][0], 'n');
+    putEmpty(0, 'r');
+    putEmpty(0, 'k');
+    putEmpty(0, 'r');
+    std::string upper = rank;
+    for (char& c : upper) c = char(c - 32);
+    return rank + "/pppppppp/8/8/8/8/PPPPPPPP/" + upper + " w KQkq - 0 1";
+}
+
 void Position::clear() {
     board_.fill(NoPiece);
     side_ = White;
     castling_ = 0;
+    chess960_ = false;
+    castleMask_.fill(15);
     ep_ = NoSquare;
     halfmove_ = 0;
     fullmove_ = 1;
@@ -119,21 +134,33 @@ bool Position::setFEN(const std::string& fen, std::string* error) {
 
     if (castling != "-") {
         for (char c : castling) {
-            switch (c) {
-            case 'K': p.castling_ |= WhiteOO; break;
-            case 'Q': p.castling_ |= WhiteOOO; break;
-            case 'k': p.castling_ |= BlackOO; break;
-            case 'q': p.castling_ |= BlackOOO; break;
-            default: return fail("FEN: неверные права рокировки");
+            const Color col = std::islower((unsigned char)c) ? Black : White;
+            const char u = char(std::toupper((unsigned char)c));
+            const int base = col == White ? 0 : 56;
+            const Square k = p.kingSq_[col];
+            const Piece rook = makePiece(col, Rook);
+            if (u != 'K' && u != 'Q' && (u < 'A' || u > 'H')) return fail("FEN: неверные права рокировки");
+            if (k - base < 0 || k - base > 7) continue;
+            Square r = NoSquare;
+            if (u == 'K') {
+                for (int f = 7; f > fileOf(k) && r == NoSquare; --f)
+                    if (p.board_[base + f] == rook) r = base + f;
+            } else if (u == 'Q') {
+                for (int f = 0; f < fileOf(k) && r == NoSquare; ++f)
+                    if (p.board_[base + f] == rook) r = base + f;
+            } else if (p.board_[base + u - 'A'] == rook && u - 'A' != fileOf(k)) {
+                r = base + u - 'A';
             }
+            if (r == NoSquare) continue;
+            const bool isShort = r > k;
+            const int idx = col * 2 + (isShort ? 0 : 1);
+            p.castling_ |= 1 << idx;
+            p.castleRook_[idx] = r;
+            p.castleMask_[r] &= uint8_t(~(1 << idx));
+            p.castleMask_[k] &= uint8_t(~(1 << idx));
+            if (fileOf(k) != 4 || fileOf(r) != (isShort ? 7 : 0)) p.chess960_ = true;
         }
     }
-    if (p.board_[4] != WKing) p.castling_ &= ~(WhiteOO | WhiteOOO);
-    if (p.board_[7] != WRook) p.castling_ &= ~WhiteOO;
-    if (p.board_[0] != WRook) p.castling_ &= ~WhiteOOO;
-    if (p.board_[60] != BKing) p.castling_ &= ~(BlackOO | BlackOOO);
-    if (p.board_[63] != BRook) p.castling_ &= ~BlackOO;
-    if (p.board_[56] != BRook) p.castling_ &= ~BlackOOO;
 
     if (ep != "-") {
         Square s = parseSquare(ep);
@@ -178,10 +205,11 @@ std::string Position::fen() const {
     }
     s += side_ == White ? " w " : " b ";
     if (!castling_) s += '-';
-    if (castling_ & WhiteOO) s += 'K';
-    if (castling_ & WhiteOOO) s += 'Q';
-    if (castling_ & BlackOO) s += 'k';
-    if (castling_ & BlackOOO) s += 'q';
+    for (int i = 0; i < 4; ++i) {
+        if (!(castling_ & (1 << i))) continue;
+        const char c = chess960_ ? char('A' + fileOf(castleRook_[i])) : "KQ"[i & 1];
+        s += i < 2 ? c : char(std::tolower(c));
+    }
     s += ' ';
     s += ep_ == NoSquare ? "-" : squareName(ep_);
     s += ' ' + std::to_string(halfmove_) + ' ' + std::to_string(fullmove_);
@@ -308,16 +336,18 @@ void Position::generatePseudo(std::vector<Move>& out) const {
     }
 
     const Color them = ~us;
-    const int base = us == White ? 0 : 56;
-    const uint8_t oo = us == White ? WhiteOO : BlackOO;
-    const uint8_t ooo = us == White ? WhiteOOO : BlackOOO;
-    if ((castling_ & (oo | ooo)) && !isAttacked(base + 4, them)) {
-        if ((castling_ & oo) && board_[base + 5] == NoPiece && board_[base + 6] == NoPiece &&
-            !isAttacked(base + 5, them) && !isAttacked(base + 6, them))
-            add(base + 4, base + 6, Move::Castle);
-        if ((castling_ & ooo) && board_[base + 3] == NoPiece && board_[base + 2] == NoPiece &&
-            board_[base + 1] == NoPiece && !isAttacked(base + 3, them) && !isAttacked(base + 2, them))
-            add(base + 4, base + 2, Move::Castle);
+    const Square k = kingSq_[us];
+    for (int idx = us * 2; idx < us * 2 + 2; ++idx) {
+        if (!(castling_ & (1 << idx))) continue;
+        const Square r = castleRook_[idx];
+        const Move m{uint8_t(k), uint8_t(chess960_ ? r : (r > k ? k + 2 : k - 2)), NoPieceType, Move::Castle};
+        const Square kt = castleKingTo(m), rt = castleRookTo(m);
+        bool ok = true;
+        for (Square s = std::min({k, r, kt, rt}); ok && s <= std::max({k, r, kt, rt}); ++s)
+            if (s != k && s != r && board_[s] != NoPiece) ok = false;
+        for (Square s = std::min(k, kt); ok && s <= std::max(k, kt); ++s)
+            if (isAttacked(s, them)) ok = false;
+        if (ok) out.push_back(m);
     }
 }
 
@@ -349,14 +379,6 @@ Move Position::findLegal(Square from, Square to, PieceType promo) {
     return Move::none();
 }
 
-void Position::movePieceRaw(Square from, Square to) {
-    const Zobrist& z = Z();
-    const Piece pc = board_[from];
-    hash_ ^= z.psq[pc][from] ^ z.psq[pc][to];
-    board_[to] = pc;
-    board_[from] = NoPiece;
-}
-
 void Position::makeMove(Move m) {
     const Zobrist& z = Z();
     const Color us = side_, them = ~us;
@@ -368,27 +390,31 @@ void Position::makeMove(Move m) {
     if (ep_ != NoSquare) hash_ ^= z.ep[fileOf(ep_)];
     hash_ ^= z.castle[castling_];
 
-    const Square capSq = m.isEnPassant() ? (us == White ? m.to - 8 : m.to + 8) : m.to;
-    const Piece cap = board_[capSq];
-    if (cap != NoPiece) {
-        hash_ ^= z.psq[cap][capSq];
-        board_[capSq] = NoPiece;
+    Piece cap = NoPiece;
+    if (m.isCastle()) {
+        const Square r = castleRook(m), kt = castleKingTo(m), rt = castleRookTo(m);
+        const Piece rook = makePiece(us, Rook);
+        hash_ ^= z.psq[pc][m.from] ^ z.psq[rook][r] ^ z.psq[pc][kt] ^ z.psq[rook][rt];
+        board_[m.from] = board_[r] = NoPiece;
+        board_[kt] = pc;
+        board_[rt] = rook;
+        kingSq_[us] = kt;
+    } else {
+        const Square capSq = m.isEnPassant() ? (us == White ? m.to - 8 : m.to + 8) : m.to;
+        cap = board_[capSq];
+        if (cap != NoPiece) {
+            hash_ ^= z.psq[cap][capSq];
+            board_[capSq] = NoPiece;
+        }
+        const Piece placed = m.isPromotion() ? makePiece(us, PieceType(m.promo)) : pc;
+        hash_ ^= z.psq[pc][m.from] ^ z.psq[placed][m.to];
+        board_[m.from] = NoPiece;
+        board_[m.to] = placed;
+        if (typeOf(pc) == King) kingSq_[us] = m.to;
     }
     st.captured = cap;
 
-    const Piece placed = m.isPromotion() ? makePiece(us, PieceType(m.promo)) : pc;
-    hash_ ^= z.psq[pc][m.from] ^ z.psq[placed][m.to];
-    board_[m.from] = NoPiece;
-    board_[m.to] = placed;
-    if (typeOf(pc) == King) kingSq_[us] = m.to;
-
-    if (m.isCastle()) {
-        const int base = us == White ? 0 : 56;
-        if (m.to == base + 6) movePieceRaw(base + 7, base + 5);
-        else movePieceRaw(base + 0, base + 3);
-    }
-
-    castling_ &= castleMask(m.from) & castleMask(m.to);
+    castling_ &= castleMask_[m.from] & castleMask_[m.to];
     hash_ ^= z.castle[castling_];
 
     ep_ = NoSquare;
@@ -415,21 +441,17 @@ void Position::unmakeMove() {
     side_ = ~side_;
     const Color us = side_;
 
-    const Piece placed = board_[m.to];
-    const Piece pc = m.isPromotion() ? makePiece(us, Pawn) : placed;
-    board_[m.to] = NoPiece;
-    board_[m.from] = pc;
-    if (typeOf(pc) == King) kingSq_[us] = m.from;
-
     if (m.isCastle()) {
-        const int base = us == White ? 0 : 56;
-        if (m.to == base + 6) {
-            board_[base + 7] = board_[base + 5];
-            board_[base + 5] = NoPiece;
-        } else {
-            board_[base + 0] = board_[base + 3];
-            board_[base + 3] = NoPiece;
-        }
+        board_[castleKingTo(m)] = board_[castleRookTo(m)] = NoPiece;
+        board_[m.from] = makePiece(us, King);
+        board_[castleRook(m)] = makePiece(us, Rook);
+        kingSq_[us] = m.from;
+    } else {
+        const Piece placed = board_[m.to];
+        const Piece pc = m.isPromotion() ? makePiece(us, Pawn) : placed;
+        board_[m.to] = NoPiece;
+        board_[m.from] = pc;
+        if (typeOf(pc) == King) kingSq_[us] = m.from;
     }
 
     if (st.captured != NoPiece) {

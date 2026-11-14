@@ -55,4 +55,8 @@ struct Move {
     }
 };
 
+constexpr bool castleShort(Move m) { return m.to > m.from; }
+constexpr Square castleKingTo(Move m) { return m.from - fileOf(m.from) + (castleShort(m) ? 6 : 2); }
+constexpr Square castleRookTo(Move m) { return m.from - fileOf(m.from) + (castleShort(m) ? 5 : 3); }
+
 }

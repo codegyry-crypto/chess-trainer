@@ -40,7 +40,7 @@ Move parseUCI(Position& pos, std::string_view text) {
 
 namespace {
 std::string sanBody(const Move& m, const std::vector<Move>& legal, Position& pos, const PieceLetters& L) {
-    if (m.isCastle()) return fileOf(m.to) == 6 ? "O-O" : "O-O-O";
+    if (m.isCastle()) return castleShort(m) ? "O-O" : "O-O-O";
 
     const PieceType pt = typeOf(pos.at(m.from));
     std::string s;

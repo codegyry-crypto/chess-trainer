@@ -100,6 +100,7 @@ add_executable(ChessTrainer WIN32
     src/ui/app_openings.cpp
     src/ui/app_endgames.cpp
     src/ui/app_plan.cpp
+    src/ui/app_chess960.cpp
     src/ui/app_puzzles.cpp
     src/ui/app_shots.cpp
     src/ui/app_update.cpp

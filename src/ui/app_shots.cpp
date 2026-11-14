@@ -29,7 +29,20 @@ void App::setupShot(const std::string& screen) {
     };
     settings_.vsBot = screen == "newgame" || screen == "botplay" || screen == "sfplay" || screen == "elo" ||
                       screen == "coach" || screen == "coachhint";
-    newGameOpen_ = screen == "newgame";
+    newGameOpen_ = screen == "newgame" || screen == "newgame960";
+    if (screen == "newgame960" || screen == "play960" || screen == "review960") {
+        settings_.vsBot = true;
+        chess960_ = true;
+        chess960Pos_ = 249;
+    }
+    if (screen == "play960" || screen == "review960") {
+        settings_.botId = "club";
+        settings_.colorChoice = 0;
+        startGame(timeControls()[2], chess960Fen());
+        for (const char* uci : {"c2c3", "c7c6", "d1c2", "d8c7", "c1b1", "c8b8", "g1f3", "g8f6"})
+            session_.play(chess::parseUCI(session_.position(), uci));
+        if (screen == "review960") openReview(session_.toGame(), 0, Screen::Game);
+    }
     if (screen == "rated") {
         ratedOpen_ = true;
         ratedPhase_ = 2;

@@ -462,7 +462,8 @@ void App::drawNewGameModal() {
     y += 24;
     if (chip({x0, y, 200, 44}, "Бот", vsBot)) settings_.vsBot = true;
     if (chip({x0 + 210, y, 200, 44}, "Друг рядом", !vsBot)) settings_.vsBot = false;
-    toggle({x0 + 430, y, 210, 44}, "Тренер", settings_.coachMode);
+    toggle({x0 + 430, y, 190, 44}, "Тренер", settings_.coachMode);
+    toggle({x0 + 632, y, 220, 44}, "Шахматы-960", chess960_);
     y += 60;
 
     if (vsBot) {
@@ -513,11 +514,13 @@ void App::drawNewGameModal() {
     const float by = r.y + r.height - 24 - 48;
     if (screen_ == Screen::Game && rated_ && !session_.over() && session_.moves().size() >= 2)
         text("Текущая рейтинговая партия будет засчитана как поражение", {x0, by + 14}, 15, t.danger);
+    else if (chess960_)
+        drawChess960Picker(x0, by + 2);
     else if (vsBot)
         text("Тренировочная партия — в рейтинг не идёт", {x0, by + 14}, 15, t.sub);
     if (button({r.x + r.width - 24 - 200, by, 200, 48}, "Начать", Style::Primary, true, 19) ||
         IsKeyPressed(KEY_ENTER))
-        startGame(tcs[settings_.tcIndex]);
+        startGame(tcs[settings_.tcIndex], chess960Fen());
     else if (button({r.x + r.width - 24 - 200 - 12 - 130, by, 130, 48}, "Отмена", Style::Ghost) ||
              IsKeyPressed(KEY_ESCAPE))
         newGameOpen_ = false;
@@ -1112,11 +1115,11 @@ void App::drawGameOver(Rectangle b) {
         if (rated_) {
             if (button({r.x + 24, y, bw, 50}, "Следующая", Style::Primary)) openRated();
         } else if (button({r.x + 24, y, bw, 50}, "Реванш", Style::Primary)) {
-            if (!session_.startFen().empty()) {
+            if (!session_.startFen().empty() && !session_.position().chess960()) {
                 startGame(session_.timeControl(), session_.startFen(), bot_, humanColor_);
             } else {
                 settings_.colorChoice = humanColor_ == chess::White ? 2 : 0;
-                startGame(session_.timeControl());
+                startGame(session_.timeControl(), session_.startFen());
             }
         }
         if (button({r.x + 24 + bw + 10, y, bw, 50}, "Новая партия")) newGameOpen_ = true;

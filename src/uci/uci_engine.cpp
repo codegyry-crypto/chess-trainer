@@ -177,6 +177,10 @@ Analysis Engine::analyse(const std::string& fen, const std::vector<std::string>&
     Analysis res;
     if (!running()) return res;
     setOption("MultiPV", std::to_string(multipv));
+    std::istringstream fields(fen);
+    std::string castling;
+    fields >> castling >> castling >> castling;
+    setOption("UCI_Chess960", castling.find_first_not_of("KQkq-") == std::string::npos ? "false" : "true");
     std::string pos = fen == "startpos" || fen.empty() ? "position startpos" : "position fen " + fen;
     if (!moves.empty()) {
         pos += " moves";

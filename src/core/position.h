@@ -22,6 +22,7 @@ public:
         "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
     Position();
+    static std::string chess960FEN(int n);
 
     bool setFEN(const std::string& fen, std::string* error = nullptr);
     std::string fen() const;
@@ -29,6 +30,8 @@ public:
     Piece at(Square s) const { return board_[s]; }
     Color sideToMove() const { return side_; }
     int castlingRights() const { return castling_; }
+    bool chess960() const { return chess960_; }
+    Square castleRook(Move m) const { return castleRook_[(m.from >= 56 ? 2 : 0) + (castleShort(m) ? 0 : 1)]; }
     int halfmoveClock() const { return halfmove_; }
     int fullmoveNumber() const { return fullmove_; }
     Square kingSquare(Color c) const { return kingSq_[c]; }
@@ -68,11 +71,13 @@ private:
     void clear();
     void generatePseudo(std::vector<Move>& out) const;
     void addPawnMove(std::vector<Move>& out, Square from, Square to, uint8_t flags) const;
-    void movePieceRaw(Square from, Square to);
 
     std::array<Piece, 64> board_{};
     Color side_ = White;
     uint8_t castling_ = 0;
+    bool chess960_ = false;
+    std::array<Square, 4> castleRook_{};
+    std::array<uint8_t, 64> castleMask_{};
     Square ep_ = NoSquare;
     int halfmove_ = 0;
     int fullmove_ = 1;

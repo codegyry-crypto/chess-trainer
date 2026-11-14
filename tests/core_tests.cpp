@@ -106,6 +106,17 @@ static void testPerft(bool deep) {
         {"pos5", "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8", {44, 1486, 62379, 2103487}},
         {"pos6", "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10",
          {46, 2079, 89890, 3894594}},
+        {"960-0", "bbqnnrkr/pppppppp/8/8/8/8/PPPPPPPP/BBQNNRKR w HFhf - 0 1", {20, 400, 9006, 201143, 4975808}},
+        {"960-959", "rkrnnqbb/pppppppp/8/8/8/8/PPPPPPPP/RKRNNQBB w CAca - 0 1", {20, 400, 9006, 201143, 4973573}},
+        {"960-a", "bqnb1rkr/pp3ppp/3ppn2/2p5/5P2/P2P4/NPP1P1PP/BQ1BNRKR w HFhf - 2 9",
+         {21, 528, 12189, 326672, 8146062}},
+        {"960-b", "2nnrbkr/p1qppppp/8/1ppb4/6PP/3PP3/PPP2P2/BQNNRBKR w HEhe - 1 9",
+         {21, 807, 18002, 667366, 16253601}},
+        {"960-c", "b1q1rrkb/pppppppp/3nn3/8/P7/1PPP4/4PPPP/BQNNRKRB w GE - 1 9",
+         {20, 479, 10471, 273318, 6417013}},
+        {"960-d", "rk5r/pp4pp/8/8/8/8/PP4PP/RK5R w HAha - 0 1", {17, 280, 5356, 99262, 2041642}},
+        {"960-e", "1r3rkr/8/8/8/8/8/8/1R3RKR w HFhf - 0 1", {29, 710, 20572, 567062, 16944465}},
+        {"960-f", "r1k4r/8/8/8/2q5/8/8/R1K4R w HAha - 0 1", {4, 200, 3577, 153761, 2902496}},
     };
     for (const Case& c : cases) {
         Position pos = fromFEN(c.fen);
@@ -264,6 +275,34 @@ static void testPGN() {
     CHECK(err.find("Ke3") != std::string::npos);
 }
 
+static void testChess960() {
+    CHECK_EQ(Position::chess960FEN(518), std::string(Position::StartFEN));
+    CHECK_EQ(Position::chess960FEN(0), std::string("bbqnnrkr/pppppppp/8/8/8/8/PPPPPPPP/BBQNNRKR w KQkq - 0 1"));
+    CHECK_EQ(Position::chess960FEN(959), std::string("rkrnnqbb/pppppppp/8/8/8/8/PPPPPPPP/RKRNNQBB w KQkq - 0 1"));
+    for (int n = 0; n < 960; ++n) {
+        Position p = fromFEN(Position::chess960FEN(n));
+        CHECK_EQ(p.castlingRights(), 15);
+        CHECK_EQ(p.chess960(), !(p.at(4) == WKing && p.at(0) == WRook && p.at(7) == WRook));
+    }
+    Position p = fromFEN(Position::chess960FEN(0));
+    CHECK_EQ(p.fen(), std::string("bbqnnrkr/pppppppp/8/8/8/8/PPPPPPPP/BBQNNRKR w HFhf - 0 1"));
+    p = fromFEN("rk5r/8/8/8/8/8/8/R4RKR w HFha - 0 1");
+    const Move ooo = parseSAN(p, "O-O-O");
+    CHECK(ooo.isCastle());
+    CHECK_EQ(toUCI(ooo), std::string("g1f1"));
+    CHECK(parseSAN(p, "O-O").isNone());
+    p.makeMove(ooo);
+    CHECK_EQ(p.fen(), std::string("rk5r/8/8/8/8/8/8/R1KR3R b ha - 1 1"));
+    const Move boo = parseUCI(p, "b8a8");
+    CHECK(boo.isCastle());
+    p.makeMove(boo);
+    CHECK_EQ(p.fen(), std::string("2kr3r/8/8/8/8/8/8/R1KR3R w - - 2 2"));
+    p.unmakeMove();
+    p.unmakeMove();
+    CHECK_EQ(p.fen(), std::string("rk5r/8/8/8/8/8/8/R4RKR w HFha - 0 1"));
+    CHECK_EQ(p.hash(), p.computeHash());
+}
+
 int main(int argc, char** argv) {
     const bool deep = argc > 1 && std::strcmp(argv[1], "--deep") == 0;
     const auto t0 = std::chrono::steady_clock::now();
@@ -271,6 +310,7 @@ int main(int argc, char** argv) {
     testRules();
     testSAN();
     testPGN();
+    testChess960();
     testPerft(deep);
     const double sec = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
     std::printf("%d checks, %d failures, %.2f s\n", checks, failures, sec);
