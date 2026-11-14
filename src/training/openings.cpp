@@ -139,12 +139,33 @@ OpeningTree buildTree(const Repertoire& rep) {
         for (size_t i = 0; i < moves.size(); ++i) {
             auto& list = t.next[positionKey(p)];
             auto it = std::find_if(list.begin(), list.end(), [&](const OpeningMove& m) { return m.move == moves[i]; });
-            if (it == list.end()) it = list.insert(list.end(), {moves[i], {}});
+            if (it == list.end()) it = list.insert(list.end(), {moves[i], {}, 0});
+            ++it->weight;
             if (it->note.empty()) it->note = l.notes[i];
             p.makeMove(moves[i]);
         }
     }
     return t;
+}
+
+RepertoireExit repertoireExit(const OpeningTree& tree, const std::vector<chess::Move>& moves) {
+    chess::Position p;
+    for (size_t i = 0; i < moves.size(); ++i) {
+        const auto* list = tree.at(p);
+        if (!list) return {int(i), false, {}};
+        if (std::none_of(list->begin(), list->end(), [&](const OpeningMove& o) { return o.move == moves[i]; }))
+            return {int(i), true, list->front().move};
+        p.makeMove(moves[i]);
+    }
+    return {};
+}
+
+const OpeningMove* pickTreeMove(const OpeningTree& tree, const chess::Position& p, std::mt19937& rng) {
+    const auto* list = tree.at(p);
+    if (!list) return nullptr;
+    std::vector<int> w;
+    for (const auto& o : *list) w.push_back(o.weight);
+    return &(*list)[std::discrete_distribution<size_t>(w.begin(), w.end())(rng)];
 }
 
 std::vector<std::string> checkRepertoire(const Repertoire& rep) {

@@ -221,6 +221,30 @@ static void testOpenings() {
     CHECK(tree.at(p)->size() == 2);
     p.makeMove(parseSAN(p, "h4"));
     CHECK(!tree.at(p));
+    {
+        const auto line = lineMoves(reps[0].lines[0]);
+        CHECK(repertoireExit(tree, line).ply == -1);
+        auto longer = lineMoves(reps[0].lines[2]);
+        Position e;
+        for (const Move m : longer) e.makeMove(m);
+        longer.push_back(parseSAN(e, "dxe4"));
+        CHECK(repertoireExit(tree, longer).ply == 5 && !repertoireExit(tree, longer).deviated);
+        Position q;
+        std::vector<Move> dev;
+        for (const char* m : {"e4", "e5"}) dev.push_back(parseSAN(q, m)), q.makeMove(dev.back());
+        const auto ex = repertoireExit(tree, dev);
+        CHECK(ex.ply == 1 && ex.deviated && ex.expected == line[1]);
+        Position r;
+        r.makeMove(line[0]);
+        r.makeMove(line[1]);
+        CHECK((*tree.at(r))[0].weight == 2 && (*tree.at(r))[1].weight == 1);
+        std::mt19937 rng(1);
+        int first = 0;
+        for (int i = 0; i < 300; ++i) first += pickTreeMove(tree, r, rng)->move == line[2];
+        CHECK(first > 150 && first < 250);
+        r.makeMove(parseSAN(r, "h4"));
+        CHECK(!pickTreeMove(tree, r, rng));
+    }
     const auto errors = checkRepertoire(reps[0]);
     CHECK(errors.size() == 1 && errors[0].find("Ke4") != std::string::npos);
     CHECK(checkRepertoire(reps[1]).size() == 1);

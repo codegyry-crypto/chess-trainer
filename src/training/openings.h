@@ -2,6 +2,7 @@
 #include "core/position.h"
 
 #include <filesystem>
+#include <random>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -23,11 +24,18 @@ struct Repertoire {
 struct OpeningMove {
     chess::Move move;
     std::string note;
+    int weight = 1;
 };
 
 struct OpeningTree {
     std::unordered_map<std::string, std::vector<OpeningMove>> next;
     const std::vector<OpeningMove>* at(const chess::Position& p) const;
+};
+
+struct RepertoireExit {
+    int ply = -1;
+    bool deviated = false;
+    chess::Move expected;
 };
 
 struct OpeningCard {
@@ -41,6 +49,8 @@ void saveCustomLines(const std::vector<Repertoire>& reps, const std::filesystem:
 std::string positionKey(const chess::Position& p);
 std::vector<chess::Move> lineMoves(const OpeningLine& line);
 OpeningTree buildTree(const Repertoire& rep);
+RepertoireExit repertoireExit(const OpeningTree& tree, const std::vector<chess::Move>& moves);
+const OpeningMove* pickTreeMove(const OpeningTree& tree, const chess::Position& p, std::mt19937& rng);
 std::vector<std::string> checkRepertoire(const Repertoire& rep);
 std::vector<OpeningLine> linesFromPGN(const std::string& pgn);
 std::string customLineTitle(const std::vector<std::string>& moves);

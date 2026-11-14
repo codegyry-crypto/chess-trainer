@@ -122,6 +122,8 @@ private:
     void drawOpeningDrill(Rectangle boardRect, float px);
     void drawOpeningAdd(Rectangle boardRect, float px);
     void drawOpenings();
+    void playRepertoire();
+    void retryRepertoireLine();
     void openVision(training::VisionMode mode);
     void drawVision();
 
@@ -233,6 +235,8 @@ private:
         chess::Color firstMover = chess::White;
         int firstMoveNumber = 1;
         bool mistakesSaved = false;
+        int rep = -1;
+        training::RepertoireExit repExit;
     };
     Review review_;
     int reviewPly_ = 0, reviewShownPly_ = 0, reviewListPly_ = -1;
@@ -325,7 +329,8 @@ private:
     chess::Position opPos_;
     std::vector<chess::Move> opMoves_;
     std::string opNote_, opReply_;
-    bool opShow_ = false, opNew_ = false, opFailed_ = false;
+    bool opShow_ = false, opNew_ = false, opFailed_ = false, opFollow_ = false, repToasted_ = false;
+    int playRep_ = -1;
     double opTimer_ = 0, opDeleteUntil_ = 0;
     float opScroll_ = 0;
 

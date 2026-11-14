@@ -68,6 +68,8 @@ void App::openReview(const chess::Game& game, int myColor, Screen returnTo) {
     review_.black = game.tag("Black").empty() ? "Чёрные" : game.tag("Black");
     review_.result = game.result;
     review_.myColor = myColor;
+    review_.rep = returnTo == Screen::Game ? playRep_ : -1;
+    if (review_.rep >= 0) review_.repExit = training::repertoireExit(repTrees_[review_.rep], game.moves);
     Position p = game.startPosition();
     review_.firstMover = p.sideToMove();
     review_.firstMoveNumber = p.fullmoveNumber();
@@ -293,6 +295,7 @@ void App::drawReviewMoves(Rectangle r) {
             text(s, {cell.x + 8, cell.y + 4}, 16, isBad(g) ? gradeColor(g) : (current ? t.hlText : t.text),
                  current || isBad(g));
             if (g != Grade::None) drawGradeIcon({cell.x + cell.width - 14, cell.y + cell.height / 2}, 8, g);
+            if (review_.rep >= 0 && i == review_.repExit.ply) roundRect({cell.x - 4, cell.y + 3, 4, cell.height - 6}, 2, t.accent);
             if (hot) setHandCursor();
             if (clicked(cell) && hovered(area)) reviewPly_ = i + 1;
         }
@@ -508,6 +511,11 @@ void App::drawAnalysis() {
         text(ev, {ic.x + ic.width - 18 - measure(ev, 20, true).x, ic.y + 14}, 20, t.text, true);
         if (g != Grade::None)
             text(analysis::gradeName(g), {ic.x + 46, ic.y + 45}, 15, gradeColor(g), true);
+        const bool repEnd = review_.rep >= 0 && i == review_.repExit.ply;
+        if (repEnd) {
+            const std::string s = "Здесь кончился твой репертуар";
+            text(s, {ic.x + ic.width - 18 - measure(s, 15).x, ic.y + 45}, 15, t.accent);
+        }
         float ly = ic.y + 70;
         const Position before = reviewPosition(i);
         const analysis::MoveNamer namer = [this](Position& p, Move m) { return moveName(p, m); };
@@ -548,6 +556,10 @@ void App::drawAnalysis() {
         if (isBad(g) && !evals_[i].bestUci.empty() &&
             button({ic.x + 18, ic.y + ic.height - 46, 200, 36}, "Найти ход лучше", Style::Primary, true, 15))
             startRetry(i);
+        const chess::Color mover = i % 2 == 0 ? review_.firstMover : ~review_.firstMover;
+        if (repEnd && review_.repExit.deviated && (review_.myColor == 0) == (mover == chess::White) &&
+            button({ic.x + ic.width - 218, ic.y + ic.height - 46, 200, 36}, "Повторить линию", Style::Secondary, true, 15))
+            retryRepertoireLine();
     }
     py += ic.height + 10;
 

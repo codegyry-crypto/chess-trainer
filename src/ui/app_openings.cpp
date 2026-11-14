@@ -80,6 +80,7 @@ void App::openRepertoire(int rep) {
 
 void App::selectOpeningLine(int line) {
     opLine_ = line;
+    opFollow_ = false;
     opMoves_.clear();
     opPly_ = 0;
     board_.reset();
@@ -87,6 +88,31 @@ void App::selectOpeningLine(int line) {
     const auto& l = reps_[opRep_].lines[line];
     opMoves_ = training::lineMoves(l);
     while (opPly_ < opMoves_.size() && l.notes[opPly_].empty()) ++opPly_;
+}
+
+void App::playRepertoire() {
+    const int rep = opRep_;
+    const auto& tcs = timeControls();
+    startGame(tcs[std::clamp(settings_.tcIndex, 0, int(tcs.size()) - 1)], {}, engine::botById(settings_.botId), openingColor());
+    playRep_ = rep;
+}
+
+void App::retryRepertoireLine() {
+    const int rep = review_.rep, ply = review_.repExit.ply;
+    const auto& lines = reps_[rep].lines;
+    int best = 0;
+    for (int k = 0; k < int(lines.size()); ++k) {
+        const auto mv = training::lineMoves(lines[k]);
+        if (int(mv.size()) > ply && mv[ply] == review_.repExit.expected &&
+            std::equal(mv.begin(), mv.begin() + ply, review_.moves.begin())) {
+            best = k;
+            break;
+        }
+    }
+    openRepertoire(rep);
+    selectOpeningLine(best);
+    opFollow_ = true;
+    startOpeningDrill();
 }
 
 void App::reviewOpenings() {
@@ -137,7 +163,14 @@ void App::openingReply() {
         opPos_.unmakeMove();
     }
     if (std::all_of(weights.begin(), weights.end(), [](int w) { return w == 0; })) std::fill(weights.begin(), weights.end(), 1);
-    const auto& pick = list[std::discrete_distribution<size_t>(weights.begin(), weights.end())(rng_)];
+    size_t idx = std::discrete_distribution<size_t>(weights.begin(), weights.end())(rng_);
+    if (opFollow_ && opLine_ >= 0) {
+        const auto line = training::lineMoves(reps_[opRep_].lines[opLine_]);
+        if (opMoves_.size() < line.size() && std::equal(opMoves_.begin(), opMoves_.end(), line.begin()))
+            for (size_t k = 0; k < list.size(); ++k)
+                if (list[k].move == line[opMoves_.size()]) idx = k;
+    }
+    const auto& pick = list[idx];
     opReply_ = moveName(opPos_, pick.move) + (pick.note.empty() ? "" : " — " + pick.note);
     const Position before = opPos_;
     opPos_.makeMove(pick.move);
@@ -325,10 +358,16 @@ void App::drawOpeningView(Rectangle boardRect, float px) {
         ++opPly_;
     }
     const int todo = st.review + st.fresh;
-    if (button({px + 120, py, PanelL - 120, 46}, todo ? "Тренировать (" + std::to_string(todo) + ")" : "Тренировать", Style::Primary,
-               !rep.lines.empty()) ||
+    const float hw = (PanelL - 128) / 2;
+    if (button({px + 120, py, hw, 46}, todo ? "Тренировать (" + std::to_string(todo) + ")" : "Тренировать", Style::Primary,
+               !rep.lines.empty(), 16) ||
         (keys && !rep.lines.empty() && IsKeyPressed(KEY_ENTER))) {
+        opFollow_ = false;
         startOpeningDrill();
+        return;
+    }
+    if (button({px + 128 + hw, py, hw, 46}, "Сыграть партию", Style::Secondary, !rep.lines.empty(), 16)) {
+        playRepertoire();
         return;
     }
     py += 54;

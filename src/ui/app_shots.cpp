@@ -149,6 +149,21 @@ void App::setupShot(const std::string& screen) {
     if (screen == "opening") openRepertoire(0), opPly_ = 5;
     if (screen == "openingdrill") openRepertoire(2), startOpeningDrill();
     if (screen == "openingempty") openRepertoire(4);
+    if (screen == "repgame" || screen == "repreview" || screen == "repretry") {
+        openRepertoire(0);
+        playRepertoire();
+        const auto line = training::lineMoves(reps_[0].lines[0]);
+        for (int i = 0; i < 2; ++i) session_.play(line[i]);
+        session_.play(chess::parseUCI(session_.position(), "d2d4"));
+        updateBot();
+        if (screen != "repgame") {
+            cancelBot();
+            for (const char* uci : {"e5d4", "d1d4", "b8c6"}) session_.play(chess::parseUCI(session_.position(), uci));
+            openReview(session_.toGame(), humanColor_ == chess::White ? 0 : 1, Screen::Game);
+            reviewPly_ = review_.repExit.ply + 1;
+            if (screen == "repretry") retryRepertoireLine();
+        }
+    }
     if (screen == "openingadd") {
         openRepertoire(4);
         opMode_ = OpMode::Add;

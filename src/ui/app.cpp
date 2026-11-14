@@ -536,6 +536,8 @@ void App::startGame(const TimeControl& tc, const std::string& fen, const engine:
                     chess::Color practiceColor, bool rated) {
     forfeitIfRated();
     cancelBot();
+    playRep_ = -1;
+    repToasted_ = false;
     bot_ = practiceBot ? practiceBot : settings_.vsBot ? engine::botById(settings_.botId) : nullptr;
     if (bot_) {
         humanColor_ = practiceBot                  ? practiceColor
@@ -615,6 +617,26 @@ void App::updateBot() {
     if (moves.size() < 2) minThink = std::min(minThink, 0.6);
     botReadyAt_ = GetTime() + minThink;
     botStop_ = false;
+    if (playRep_ >= 0) {
+        const auto& tree = repTrees_[playRep_];
+        const auto ex = training::repertoireExit(tree, moves);
+        if (ex.deviated && !repToasted_) {
+            repToasted_ = true;
+            Position p;
+            for (int i = 0; i < ex.ply; ++i) p.makeMove(moves[i]);
+            toast("Вышел из репертуара на ходу " + std::to_string(ex.ply / 2 + 1) + ": по плану было " + moveName(p, ex.expected));
+        }
+        if (ex.ply < 0)
+            if (const auto* o = training::pickTreeMove(tree, pos, rng_)) {
+                engine::BotMove bm;
+                bm.move = o->move;
+                bm.fromBook = true;
+                std::promise<engine::BotMove> ready;
+                ready.set_value(bm);
+                botFuture_ = ready.get_future();
+                return;
+            }
+    }
     const std::filesystem::path sf = stockfishExe_;
     botFuture_ = std::async(std::launch::async, [this, pos, moves, prof, budget, seed, sf, fen = session_.startFen()]() {
         if (prof.stockfishElo > 0 && !sf.empty()) {
