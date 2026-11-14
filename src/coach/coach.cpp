@@ -76,6 +76,7 @@ MoveCheck checkMove(const Position& pos, Move m, engine::Searcher& s) {
 
 std::vector<std::string> castlingProblems(Position& pos) {
     std::vector<std::string> out;
+    if (pos.chess960()) return out;
     const Color us = pos.sideToMove();
     const int base = us == White ? 0 : 56;
     const Color them = ~us;

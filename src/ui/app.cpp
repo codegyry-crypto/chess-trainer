@@ -465,11 +465,11 @@ void App::drawNewGameModal() {
 
     text("Соперник", {x0, y}, 15, t.sub);
     y += 24;
-    if (chip({x0, y, 200, 44}, "Бот", vsBot)) settings_.vsBot = true;
-    if (chip({x0 + 210, y, 200, 44}, "Друг рядом", !vsBot)) settings_.vsBot = false;
-    toggle({x0 + 430, y, 210, 44}, "Тренер", settings_.coachMode);
-    if (vsBot) toggle({x0 + 650, y, 202, 44}, "Вслепую", blindPick_);
-    y += 60;
+    if (chip({x0, y, 150, 44}, "Бот", vsBot)) settings_.vsBot = true;
+    if (chip({x0 + 160, y, 170, 44}, "Друг рядом", !vsBot)) settings_.vsBot = false;
+    toggle({x0 + 340, y, 160, 44}, "Тренер", settings_.coachMode);
+    if (vsBot) toggle({x0 + 510, y, 160, 44}, "Вслепую", blindPick_);
+    toggle({x0 + 680, y, 172, 44}, "Шахматы-960", chess960_);    y += 60;
 
     if (vsBot) {
         text("Выбери бота", {x0, y}, 15, t.sub);
@@ -519,11 +519,13 @@ void App::drawNewGameModal() {
     const float by = r.y + r.height - 24 - 48;
     if (screen_ == Screen::Game && rated_ && !session_.over() && session_.moves().size() >= 2)
         text("Текущая рейтинговая партия будет засчитана как поражение", {x0, by + 14}, 15, t.danger);
+    else if (chess960_)
+        drawChess960Picker(x0, by + 2);
     else if (vsBot)
         text("Тренировочная партия — в рейтинг не идёт", {x0, by + 14}, 15, t.sub);
     if (button({r.x + r.width - 24 - 200, by, 200, 48}, "Начать", Style::Primary, true, 19) ||
         IsKeyPressed(KEY_ENTER))
-        startGame(tcs[settings_.tcIndex]);
+        startGame(tcs[settings_.tcIndex], chess960Fen());
     else if (button({r.x + r.width - 24 - 200 - 12 - 130, by, 130, 48}, "Отмена", Style::Ghost) ||
              IsKeyPressed(KEY_ESCAPE))
         newGameOpen_ = false;
@@ -1128,11 +1130,11 @@ void App::drawGameOver(Rectangle b) {
         if (rated_) {
             if (button({r.x + 24, y, bw, 50}, "Следующая", Style::Primary)) openRated();
         } else if (button({r.x + 24, y, bw, 50}, "Реванш", Style::Primary)) {
-            if (!session_.startFen().empty()) {
+            if (!session_.startFen().empty() && !session_.position().chess960()) {
                 startGame(session_.timeControl(), session_.startFen(), bot_, humanColor_);
             } else {
                 settings_.colorChoice = humanColor_ == chess::White ? 2 : 0;
-                startGame(session_.timeControl());
+                startGame(session_.timeControl(), session_.startFen());
             }
         }
         if (button({r.x + 24 + bw + 10, y, bw, 50}, "Новая партия")) newGameOpen_ = true;

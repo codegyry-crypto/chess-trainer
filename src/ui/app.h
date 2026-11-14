@@ -144,6 +144,8 @@ private:
     void startRated();
     void drawRatedModal();
     void drawNewGameModal();
+    void drawChess960Picker(float x, float y);
+    std::string chess960Fen();
     void drawGame();
     void drawSettings();
     void drawSettingsLook(Rectangle r);
@@ -184,6 +186,8 @@ private:
 
     Screen screen_ = Screen::Menu;
     bool newGameOpen_ = false;
+    bool chess960_ = false;
+    int chess960Pos_ = -1;
     bool ratedOpen_ = false;
     int ratedPhase_ = 0;
     double ratedSearchUntil_ = 0;

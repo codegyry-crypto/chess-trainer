@@ -135,7 +135,7 @@ std::vector<Game> parsePGN(const std::string& text, std::string* error) {
             if (name == "FEN") {
                 std::string err;
                 if (!pos.setFEN(value, &err)) return fail(err);
-                game.startFen = value;
+                game.startFen = pos.chess960() ? pos.fen() : value;
             } else if (name != "SetUp") {
                 game.setTag(name, value);
             }

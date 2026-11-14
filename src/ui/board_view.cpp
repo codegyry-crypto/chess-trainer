@@ -45,7 +45,7 @@ void BoardView::refreshLegal(Position& pos) {
 
 bool BoardView::isTarget(int from, int to) const {
     for (const Move& m : legal_)
-        if (m.from == from && m.to == to) return true;
+        if (m.from == from && (m.to == to || (m.isCastle() && castleKingTo(m) == to))) return true;
     return false;
 }
 
@@ -58,6 +58,10 @@ Move BoardView::tryMove(int from, int to) {
             ++count;
         }
     }
+    if (count == 0) {
+        for (const Move& m : legal_)
+            if (m.from == from && m.isCastle() && castleKingTo(m) == to) return m;
+    }
     if (count > 1) {
         promoOpen_ = true;
         promoFrom_ = from;
@@ -69,22 +73,22 @@ Move BoardView::tryMove(int from, int to) {
 
 void BoardView::animate(const Position& before, Move m) {
     anims_.clear();
-    anims_.push_back({before.at(m.from), m.from, m.to});
     if (m.isCastle()) {
-        const int base = m.from - fileOf(m.from);
-        if (fileOf(m.to) == 6) anims_.push_back({before.at(base + 7), base + 7, base + 5});
-        else anims_.push_back({before.at(base), base, base + 3});
+        anims_.push_back({before.at(m.from), m.from, castleKingTo(m)});
+        anims_.push_back({before.at(before.castleRook(m)), before.castleRook(m), castleRookTo(m)});
+    } else {
+        anims_.push_back({before.at(m.from), m.from, m.to});
     }
     animStart_ = GetTime();
 }
 
 void BoardView::animateBack(const Position& before, Move m) {
     anims_.clear();
-    anims_.push_back({before.at(m.from), m.to, m.from});
     if (m.isCastle()) {
-        const int base = m.from - fileOf(m.from);
-        if (fileOf(m.to) == 6) anims_.push_back({before.at(base + 7), base + 5, base + 7});
-        else anims_.push_back({before.at(base), base + 3, base});
+        anims_.push_back({before.at(m.from), castleKingTo(m), m.from});
+        anims_.push_back({before.at(before.castleRook(m)), castleRookTo(m), before.castleRook(m)});
+    } else {
+        anims_.push_back({before.at(m.from), m.to, m.from});
     }
     animStart_ = GetTime();
 }
